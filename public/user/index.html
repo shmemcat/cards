@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#191b22">
+    <title>User · Cards</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="/assets/fonts/EBGaramond-Variable.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/theme.js"></script>
+    <script src="/app.js" defer></script>
+    <script src="/account.js" type="module"></script>
+    <meta name="referrer" content="no-referrer">
+  </head>
+  <body>
+    <a class="skip-link" href="#account">Skip to account</a>
+    <div class="site-shell">
+      <nav class="site-header" aria-label="Main navigation">
+        <a class="site-name" href="/" aria-label="Cards home">Cards</a>
+        <div class="nav-actions">
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Use light theme" hidden>
+            <span class="nav-icon theme-icon" aria-hidden="true"></span>
+          </button>
+          <a class="nav-account" href="/user/" aria-label="Login and user settings" aria-current="page">
+            <span class="nav-icon user-icon" aria-hidden="true"></span>
+            <span>Guest</span>
+          </a>
+        </div>
+      </nav>
+      <main class="account-page" id="account">
+        <h1>User</h1>
+        <div id="account-content" class="account-content" aria-busy="true"><p class="account-note" role="status">Loading…</p></div><noscript><p>Enable JavaScript to manage your account.</p></noscript>
+      </main>
+      <footer>
+        <a class="creator" href="https://github.com/shmemcat" aria-label="shmemcat on GitHub">
+          <span class="sparkle sparkle-one" aria-hidden="true">✦</span>
+          shmemcat
+          <span class="sparkle sparkle-two" aria-hidden="true">✦</span>
+          <span class="sparkle sparkle-three" aria-hidden="true">✦</span>
+          <span class="sparkle sparkle-four" aria-hidden="true">✦</span>
+        </a>
+      </footer>
+    </div>
+  </body>
+</html>

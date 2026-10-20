@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Hearts and Euchre, by shmemcat.">
+    <meta name="theme-color" content="#191b22">
+    <title>Cards · shmemcat</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="preload" href="/assets/fonts/EBGaramond-Variable.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/theme.js"></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#games">Skip to games</a>
+    <div class="site-shell">
+      <nav class="site-header" aria-label="Main navigation">
+        <span aria-hidden="true"></span>
+        <div class="nav-actions">
+          <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Use light theme" hidden>
+            <span class="nav-icon theme-icon" aria-hidden="true"></span>
+          </button>
+          <a class="nav-account" href="/user/" aria-label="Login and user settings">
+            <span class="nav-icon user-icon" aria-hidden="true"></span>
+            <span>Guest</span>
+          </a>
+        </div>
+      </nav>
+      <main class="hub">
+        <h1>Cards</h1>
+        <nav class="games" id="games" aria-label="Card games">
+          <a class="game-choice game-hearts" href="/hearts/" aria-label="Play Hearts">
+            <div class="game-wordmark">
+              <span class="game-logo" aria-hidden="true"></span>
+              <h2>Hearts</h2>
+            </div>
+            <span class="play-button" aria-hidden="true"><span class="button-shine"></span>Play</span>
+          </a>
+          <a class="game-choice game-euchre" href="/euchre/" aria-label="Play Euchre">
+            <div class="game-wordmark">
+              <span class="game-logo" aria-hidden="true"></span>
+              <h2>Euchre</h2>
+            </div>
+            <span class="play-button" aria-hidden="true"><span class="button-shine"></span>Play</span>
+          </a>
+        </nav>
+      </main>
+      <footer>
+        <a class="creator" href="https://github.com/shmemcat" aria-label="shmemcat on GitHub">
+          <span class="sparkle sparkle-one" aria-hidden="true">✦</span>
+          shmemcat
+          <span class="sparkle sparkle-two" aria-hidden="true">✦</span>
+          <span class="sparkle sparkle-three" aria-hidden="true">✦</span>
+          <span class="sparkle sparkle-four" aria-hidden="true">✦</span>
+        </a>
+      </footer>
+    </div>
+  </body>
+</html>
