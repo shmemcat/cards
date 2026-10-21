@@ -101,8 +101,8 @@ token. The workflow tests the matching sources and publishes
 `ghcr.io/shmemcat/cards-api:<tag>` and `cards-web:<tag>` together, without touching
 `latest`. Ensure nuttybox can pull both images.
 
-The Cards repository currently has no Actions secrets. Set the Font Awesome
-secret before building. With Hearts and Euchre public, no separate source-access
+The Font Awesome Actions secret must be configured before building. With
+Hearts and Euchre public, no separate source-access
 token is needed. If Euchre stays private, optionally set **CARDS_SOURCE_TOKEN**
 to a fine-grained token restricted to `shmemcat/euchre` with **Contents: read**
 (and GitHub's required metadata access). The default workflow token cannot read
