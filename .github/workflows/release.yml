@@ -63,8 +63,8 @@ jobs:
         env:
           FONTAWESOME_PACKAGE_TOKEN: ${{ secrets.FONTAWESOME_PACKAGE_TOKEN }}
           DATABASE_URL: sqlite://
-          CARDS_PUBLIC_URL: ''
-          SMTP2GO_API_KEY: ''
+          CARDS_PUBLIC_URL: ""
+          SMTP2GO_API_KEY: ""
         run: |
           npm --prefix hearts/web ci --no-audit --no-fund
           npm --prefix euchre/web ci --no-audit --no-fund
