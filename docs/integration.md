@@ -101,13 +101,13 @@ token. The workflow tests the matching sources and publishes
 `ghcr.io/shmemcat/cards-api:<tag>` and `cards-web:<tag>` together, without touching
 `latest`. Ensure nuttybox can pull both images.
 
-The Cards repository currently has no Actions secrets. Euchre is private, so
-also set **CARDS_SOURCE_TOKEN** to a fine-grained GitHub token restricted to
-`shmemcat/euchre` with **Contents: read** (and GitHub's required metadata access).
-The default workflow token can only read the current private repository; it
-cannot check out private Euchre. The token is used only for that checkout and
-is not persisted in Git configuration. The workflow checks both required
-secrets before building. Do not put either secret into source files or build args.
+The Cards repository currently has no Actions secrets. Set the Font Awesome
+secret before building. With Hearts and Euchre public, no separate source-access
+token is needed. If Euchre stays private, optionally set **CARDS_SOURCE_TOKEN**
+to a fine-grained token restricted to `shmemcat/euchre` with **Contents: read**
+(and GitHub's required metadata access). The default workflow token cannot read
+another private repository. Source credentials are not persisted in Git config.
+Never put credentials into source files or build args.
 Nuttybox currently has no GHCR login. After publication, make the two built image
 packages publicly pullable or configure private registry pull credentials on the
 server before selecting the release. This does not require making the Cards or
