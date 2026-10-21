@@ -108,6 +108,10 @@ The default workflow token can only read the current private repository; it
 cannot check out private Euchre. The token is used only for that checkout and
 is not persisted in Git configuration. The workflow checks both required
 secrets before building. Do not put either secret into source files or build args.
+Nuttybox currently has no GHCR login. After publication, make the two built image
+packages publicly pullable or configure private registry pull credentials on the
+server before selecting the release. This does not require making the Cards or
+Euchre source repositories public.
 
 Before deployment, pause account/game writes, take a root-only live Hearts schema
 backup, and verify an isolated restore. With the new image and existing database
