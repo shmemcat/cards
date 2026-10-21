@@ -88,6 +88,8 @@ The intended home is **https://cards.shmem.dev/**, with both games and one login
 on the same origin. The combined image and matching API are published together
 through the manual **Release Cards** workflow using exact game commit SHAs and
 a new release tag. They do not replace the existing auto-updated `latest` images.
+Set the workflow's `FONTAWESOME_PACKAGE_TOKEN` secret and `CARDS_SOURCE_TOKEN`
+(a fine-grained token with Contents: read for the private Euchre repository).
 
 The actual host uses NixOS, Podman, and the existing PostgreSQL `shmemcity`
 database's `hearts` schema. Infrastructure changes live in the sibling `infra`

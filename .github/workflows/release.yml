@@ -26,24 +26,35 @@ jobs:
       RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
       - name: Validate pinned inputs
+        env:
+          SOURCE_READ_TOKEN: ${{ secrets.CARDS_SOURCE_TOKEN }}
+          FONTAWESOME_TOKEN: ${{ secrets.FONTAWESOME_PACKAGE_TOKEN }}
         run: |
           [[ "$HEARTS_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$EUCHRE_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$RELEASE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]
           [[ "$RELEASE_TAG" != latest ]]
+          if [[ -z "$SOURCE_READ_TOKEN" || -z "$FONTAWESOME_TOKEN" ]]; then
+            echo "::error::Configure CARDS_SOURCE_TOKEN and FONTAWESOME_PACKAGE_TOKEN in this repository's Actions secrets."
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           path: cards
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: shmemcat/hearts
           ref: ${{ inputs.hearts_ref }}
           path: hearts
+          persist-credentials: false
       - uses: actions/checkout@v4
         with:
           repository: shmemcat/euchre
           ref: ${{ inputs.euchre_ref }}
           path: euchre
+          token: ${{ secrets.CARDS_SOURCE_TOKEN }}
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22

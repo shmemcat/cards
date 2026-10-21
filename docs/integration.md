@@ -101,6 +101,14 @@ token. The workflow tests the matching sources and publishes
 `ghcr.io/shmemcat/cards-api:<tag>` and `cards-web:<tag>` together, without touching
 `latest`. Ensure nuttybox can pull both images.
 
+The Cards repository currently has no Actions secrets. Euchre is private, so
+also set **CARDS_SOURCE_TOKEN** to a fine-grained GitHub token restricted to
+`shmemcat/euchre` with **Contents: read** (and GitHub's required metadata access).
+The default workflow token can only read the current private repository; it
+cannot check out private Euchre. The token is used only for that checkout and
+is not persisted in Git configuration. The workflow checks both required
+secrets before building. Do not put either secret into source files or build args.
+
 Before deployment, pause account/game writes, take a root-only live Hearts schema
 backup, and verify an isolated restore. With the new image and existing database
 environment, run `python -m hearts.account_snapshot snapshot` before migration
