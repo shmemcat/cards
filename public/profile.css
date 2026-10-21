@@ -1,0 +1,253 @@
+/* ── Profile Icon Preview ──────────────────────────────────────────── */
+
+.account-profile .iconPreview {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 10px;
+   margin-bottom: 8px;
+}
+
+.account-profile .iconPreviewCircle {
+   width: 80px;
+   height: 80px;
+   border-radius: 50%;
+   background-color: var(--hub-surface);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   border: 3px solid var(--hub-accent);
+   font-size: 32px;
+   color: var(--hub-text);
+   transition: border-color 0.2s ease, background-color 0.3s ease;
+}
+
+.account-profile .iconPreviewClickable {
+   cursor: pointer;
+   transition: border-color 0.2s ease, background-color 0.3s ease,
+      transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-profile .iconPreviewClickable:hover {
+   transform: scale(1.06);
+   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.account-profile .iconPreviewLabel {
+   font-size: 12px;
+   font-weight: 700;
+   letter-spacing: 3px;
+   text-transform: uppercase;
+   color: var(--hub-accent);
+}
+
+.account-profile .iconPreviewHint {
+   font-size: 10px;
+   font-weight: 600;
+   letter-spacing: 2px;
+   text-transform: uppercase;
+   color: var(--hub-muted);
+}
+
+/* ── Icon Picker Grid ─────────────────────────────────────────────── */
+
+.account-profile .categoryLabel {
+   font-size: 11px;
+   font-weight: 800;
+   letter-spacing: 3px;
+   text-transform: uppercase;
+   color: var(--hub-accent);
+   margin-top: 16px;
+   margin-bottom: 6px;
+   text-align: left;
+   width: 100%;
+}
+
+.account-profile .iconGrid {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 8px;
+   justify-content: center;
+   padding: 4px 0;
+}
+
+.account-profile .iconCell {
+   width: 44px;
+   height: 44px;
+   border-radius: 50%;
+   background-color: var(--hub-surface);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   cursor: pointer;
+   border: 2.5px solid transparent;
+   transition: border-color 0.15s ease, transform 0.12s ease,
+      box-shadow 0.15s ease, background-color 0.3s ease;
+   font-size: 17px;
+   color: var(--hub-text);
+}
+
+.account-profile .iconCell:hover {
+   transform: scale(1.12);
+   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.account-profile .iconCellActive {
+   border-color: var(--hub-accent);
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+   background-color: var(--hub-button);
+   color: var(--hub-background);
+}
+
+/* ── Icon Picker Container ────────────────────────────────────────── */
+
+.account-profile .pickerContainer {
+   max-width: 590px;
+   width: 100%;
+   border-radius: 20px;
+   margin-top: 8px;
+   overflow: hidden;
+   transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.account-profile .pickerOpen {
+   opacity: 1;
+}
+
+.account-profile .pickerClosed {
+   max-height: 0 !important;
+   opacity: 0;
+   pointer-events: none;
+}
+
+.account-profile .pickerInner {
+   background-color: var(--hub-surface);
+   border-radius: 20px;
+   padding: 24px 20px;
+}
+
+/* ── Email Section ────────────────────────────────────────────────── */
+
+.account-profile .emailSection {
+   margin-top: 32px;
+   width: 100%;
+   max-width: 440px;
+}
+
+.account-profile .emailRow {
+   display: flex;
+   gap: 10px;
+   align-items: center;
+}
+
+.account-profile .emailRow input {
+   flex: 1;
+   min-width: 0;
+   width: 100%;
+   padding: 8px 12px;
+}
+
+.account-profile .emailSaveBtn {
+   font-family: "appFont";
+   font-size: 13px;
+   font-weight: 700;
+   letter-spacing: 2px;
+   text-transform: uppercase;
+   color: var(--hub-background);
+   background-color: var(--hub-accent);
+   border: none;
+   border-radius: 8px;
+   padding: 8px 18px;
+   cursor: pointer;
+   white-space: nowrap;
+   transition: opacity 0.15s ease, transform 0.12s ease;
+}
+
+.account-profile .emailSaveBtn:hover {
+   opacity: 0.88;
+   transform: translateY(-1px);
+}
+
+.account-profile .emailSaveBtn:disabled {
+   opacity: 0.5;
+   cursor: not-allowed;
+   transform: none;
+}
+
+.account-profile .verificationStatus {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   margin-top: 8px;
+   font-size: 13px;
+   font-weight: 600;
+   letter-spacing: 1px;
+}
+
+.account-profile .verified {
+   color: hsl(145, 55%, 42%);
+}
+
+.account-profile .notVerified {
+   color: var(--hub-danger);
+}
+
+.account-profile .resendLink {
+   font-size: 12px;
+   margin-left: 4px;
+}
+
+.account-profile .emailMessage {
+   font-size: 13px;
+   font-weight: 600;
+   letter-spacing: 1px;
+   margin-top: 6px;
+   color: var(--hub-accent);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────── */
+
+@media only screen and (max-width: 768px) {
+   .pickerContainer {
+      max-width: 440px;
+   }
+
+   .pickerInner {
+      padding: 18px 14px;
+   }
+
+   .iconCell {
+      width: 40px;
+      height: 40px;
+      font-size: 15px;
+   }
+
+   .iconPreviewCircle {
+      width: 68px;
+      height: 68px;
+      font-size: 28px;
+   }
+}
+
+.account-profile { width: 100%; display: flex; flex-direction: column; align-items: center; }
+.account-profile h2 { position: static; font-size: 24px; letter-spacing: 3px; text-indent: 0; text-transform: none; margin: 24px 0 16px; }
+.account-profile .account-welcome { margin: 0 0 8px; }
+.account-profile svg { width: 1em; height: 1em; }
+.account-profile .iconPreviewCircle { padding: 0; }
+.account-profile .iconCell { padding: 0; }
+.account-profile .emailRow input { font: inherit; font-size: 16px; line-height: 20px; padding: 6px 12px; color: var(--hub-text); background: var(--hub-surface); border: 1px solid var(--hub-muted); border-radius: 4px; min-height: 35px; }
+.account-profile #account-status:empty { display: none; }
+.account-profile .account-actions { margin-top: 36px; }
+.account-profile .account-button { display: flex; align-items: center; justify-content: center; text-decoration: none; cursor: pointer; }
+.account-profile .account-button-danger, .account-delete-dialog .account-button-danger { margin-top: 8px; background: hsl(0,55%,58%); color: white; box-shadow: inset -3px -3px 0 #9d353566; border: 0; }
+.account-content:has(.account-profile) { width: min(100%, 590px); }
+.nav-account .user-icon:has(svg) { mask: none; -webkit-mask: none; background: none; display: inline-flex; align-items: center; justify-content: center; }
+.nav-account .user-icon svg { width: 19px; height: 20px; }
+.account-delete-dialog { width: min(100% - 32px, 380px); padding: 28px; border: 0; border-radius: 16px; color: var(--hub-text); background: var(--hub-surface); text-align: center; }
+.account-delete-dialog::backdrop { background: #0006; backdrop-filter: blur(4px); }
+.account-delete-dialog h2 { position: static; font-size: 25px; letter-spacing: 2px; text-indent: 0; text-transform: none; }
+.account-delete-dialog .account-actions { margin-top: 24px; }
+.account-delete-dialog .account-form { margin-top: 20px; }
+.account-delete-dialog .account-button { max-width: 100%; cursor: pointer; }
+.account-profile button:disabled { cursor: default; opacity: .6; }
+.account-profile .emailRow input:focus-visible { outline: 2px solid var(--hub-focus); outline-offset: 3px; }

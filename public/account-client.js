@@ -1,3 +1,4 @@
+import { PROFILE_ICONS } from '/profile-icons.js';
 let pendingSession;
 
 export async function getSession() {
@@ -12,8 +13,9 @@ export async function getSession() {
   return pendingSession;
 }
 
-export async function accountRequest(path, data) {
+export async function accountRequest(path, data, expectedUserId) {
   const session = await getSession();
+  if (expectedUserId && session.user?.id !== expectedUserId) throw new Error('Your account changed. Please refresh and try again.');
   const response = await fetch('/api/account/' + path, {
     method: 'POST', credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': session.csrf_token },
@@ -30,5 +32,16 @@ export function paintAccount(session) {
     const label = link.querySelector('span:last-child');
     if (label) label.textContent = session.user?.name || 'Guest';
     link.setAttribute('aria-label', session.user ? 'Your account' : 'Login and user settings');
+    const icon = link.querySelector('.user-icon');
+    if (icon) {
+      const key = session.user?.profile_icon === 'robot' ? 'user-robot' : session.user?.profile_icon;
+      const selected = session.user && PROFILE_ICONS.find(entry => entry.key === key);
+      icon.innerHTML = selected ? selected.svg : '';
+      icon.style.mask = selected ? 'none' : '';
+      icon.style.webkitMask = selected ? 'none' : '';
+      icon.style.background = selected ? 'none' : '';
+      const svg = icon.querySelector('svg');
+      if (svg) { svg.style.width = '19px'; svg.style.height = '20px'; }
+    }
   });
 }

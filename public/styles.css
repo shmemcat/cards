@@ -28,9 +28,12 @@
   --hub-accent: #c6a6b0;
   --hub-surface: #242731;
   --hub-button: #c6a6b0;
+  --hub-button-hover: color-mix(in srgb, var(--hub-button) 76%, #000);
   --hub-button-text: #24212a;
   --hub-button-shadow: #8665765c;
+  --hub-button-shadow-hover: #63465380;
   --hub-shine: #efe4e799;
+  --hub-shine-hover: #cbaebc99;
   --hub-danger: #e2a8ae;
   --hub-danger-border: #9d757d;
 }
@@ -43,9 +46,12 @@
   --hub-accent: #78829c;
   --hub-surface: #f4f5f8;
   --hub-button: #cbd0dd;
+  --hub-button-hover: color-mix(in srgb, var(--hub-button) 82%, #000);
   --hub-button-text: #3e4352;
   --hub-button-shadow: #676f864d;
+  --hub-button-shadow-hover: #535c7380;
   --hub-shine: #ffffff99;
+  --hub-shine-hover: #e0e4ed99;
   --hub-danger: #925c6d;
   --hub-danger-border: #bc97a5;
 }
@@ -87,6 +93,11 @@ a:focus-visible, button:focus-visible {
   display: flex;
   flex-direction: column;
 }
+.hub, .account-page { animation: page-enter 0.25s ease-out; }
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .site-header {
   display: flex;
   align-items: center;
@@ -96,6 +107,7 @@ a:focus-visible, button:focus-visible {
   color: var(--hub-muted);
 }
 .site-name { font-size: 18px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; text-decoration: none; color: var(--hub-text); }
+.site-name:is(:hover, :focus-visible) { color: var(--hub-accent); }
 .nav-actions { display: flex; align-items: center; gap: 20px; }
 .theme-toggle {
   border: 0;
@@ -313,8 +325,16 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 1px;
+  cursor: pointer;
 }
 .account-button .button-shine { background: var(--hub-shine); }
+.account-button:not(:disabled):is(:hover, :focus-visible) {
+  background: var(--hub-button-hover);
+  box-shadow: inset -3px -3px 0 var(--hub-button-shadow-hover);
+}
+.account-button:not(:disabled):is(:hover, :focus-visible) .button-shine { background: var(--hub-shine-hover); }
+.account-button:not(:disabled):active { background: var(--hub-button-hover); box-shadow: inset 3px 3px 0 var(--hub-button-shadow-hover); }
+.account-button:not(:disabled):active .button-shine { visibility: hidden; }
 .account-button-danger { border: 1px solid var(--hub-danger-border); background: transparent; color: var(--hub-danger); box-shadow: none; }
 .account-button:disabled { opacity: .6; cursor: default; }
 .account-note { margin: 22px 0 0; color: var(--hub-muted); font-size: 16px; letter-spacing: .5px; line-height: 1.35; text-align: center; }
@@ -324,9 +344,12 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
 .account-form { display: flex; flex-direction: column; gap: 18px; align-items: stretch; }
 .account-form label { display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 17px; letter-spacing: .5px; }
 .account-form input { width: 100%; min-height: 44px; border: 1px solid var(--hub-muted); border-radius: 8px; padding: 9px 12px; font: inherit; color: var(--hub-text); background: transparent; }
-.account-form .account-button { margin: 8px auto 0; cursor: pointer; }
+.account-form input::placeholder { color: var(--hub-muted); opacity: 1; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.account-form .account-button { margin: 8px auto 0; }
 .account-links { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 22px; }
 .account-text-link { padding: 3px; border: 0; background: transparent; color: var(--hub-text); font: inherit; font-size: 17px; letter-spacing: .5px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.account-text-link:not(:disabled):is(:hover, :focus-visible) { color: var(--hub-accent); }
 .account-error { color: var(--hub-danger); }
 .nav-account > span:last-child { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 650px) {
@@ -348,6 +371,7 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; }
+  .hub, .account-page { animation: none; }
   .theme-icon.is-bouncing { animation: none; }
   .game-choice { transition: none; }
   .game-choice:hover, .game-choice:active { transform: none; }

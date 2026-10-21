@@ -40,4 +40,4 @@ print("Shared Cards accounts: http://127.0.0.1:5000", flush=True)
 print("Local database: Cards/.local/accounts.sqlite", flush=True)
 print("Email delivery: " + app.config["CARDS_EMAIL_TRANSPORT"], flush=True)
 if __name__ == "__main__":
-    socketio.run(app, host="127.0.0.1", port=5000, use_reloader=False)
+    socketio.run(app, host="127.0.0.1", port=5000, use_reloader=True)

@@ -5,6 +5,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { localMail } from './local-mail.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const built = process.argv.includes('--dist');
@@ -63,6 +64,10 @@ createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     if (localGames && req.headers.host?.startsWith('127.0.0.1:')) {
       res.writeHead(308, { Location: `http://localhost:${port}${url.pathname}${url.search}` }).end();
+      return;
+    }
+    if (localGames && url.pathname === '/__dev/mail/') {
+      await localMail(req, res, resolve(projectRoot, '.local/outbox'));
       return;
     }
     if (['/verify-email', '/reset-password'].includes(url.pathname.replace(/\/$/, ''))) {
