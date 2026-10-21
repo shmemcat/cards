@@ -1,0 +1,86 @@
+name: Release Cards
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Pinned image tag to publish (not latest)
+        required: true
+      hearts_ref:
+        description: Full commit SHA containing the Hearts cutover fixes
+        required: true
+      euchre_ref:
+        description: Full Euchre commit SHA
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      HEARTS_REF: ${{ inputs.hearts_ref }}
+      EUCHRE_REF: ${{ inputs.euchre_ref }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - name: Validate pinned inputs
+        run: |
+          [[ "$HEARTS_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EUCHRE_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_TAG" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]
+          [[ "$RELEASE_TAG" != latest ]]
+      - uses: actions/checkout@v4
+        with:
+          path: cards
+      - uses: actions/checkout@v4
+        with:
+          repository: shmemcat/hearts
+          ref: ${{ inputs.hearts_ref }}
+          path: hearts
+      - uses: actions/checkout@v4
+        with:
+          repository: shmemcat/euchre
+          ref: ${{ inputs.euchre_ref }}
+          path: euchre
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v6
+      - name: Test the matching sources
+        env:
+          FONTAWESOME_PACKAGE_TOKEN: ${{ secrets.FONTAWESOME_PACKAGE_TOKEN }}
+          DATABASE_URL: sqlite://
+          CARDS_PUBLIC_URL: ''
+          SMTP2GO_API_KEY: ''
+        run: |
+          npm --prefix hearts/web ci --no-audit --no-fund
+          npm --prefix euchre/web ci --no-audit --no-fund
+          npm --prefix hearts/web run test:run
+          npm --prefix euchre/web run test:run
+          uv run --locked --project hearts/api --extra dev pytest hearts/api/tests -q
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish the matching API
+        uses: docker/build-push-action@v6
+        with:
+          context: hearts/api
+          push: true
+          tags: ghcr.io/shmemcat/cards-api:${{ inputs.release_tag }}
+          labels: org.opencontainers.image.revision=${{ inputs.hearts_ref }}
+      - name: Publish the combined Cards site
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cards/deploy/Dockerfile
+          push: true
+          tags: ghcr.io/shmemcat/cards-web:${{ inputs.release_tag }}
+          secrets: fontawesome_token=${{ secrets.FONTAWESOME_PACKAGE_TOKEN }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            dev.shmem.hearts.revision=${{ inputs.hearts_ref }}
+            dev.shmem.euchre.revision=${{ inputs.euchre_ref }}

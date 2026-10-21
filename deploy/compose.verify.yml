@@ -1,0 +1,46 @@
+# Isolated PostgreSQL 18 rehearsal. No existing network, database, or volume.
+name: cards-readiness-check
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: cards_check
+      POSTGRES_PASSWORD: disposable-local-rehearsal
+      POSTGRES_DB: cards_check
+    tmpfs: [/var/lib/postgresql]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U cards_check -d cards_check"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  cards-api:
+    image: cards-api:readiness
+    build: ../../hearts/api
+    environment:
+      FLASK_APP: hearts:app
+      DATABASE_URL: postgresql://cards_check:disposable-local-rehearsal@db:5432/cards_check
+      PGOPTIONS: '-c search_path=hearts,public'
+      JWT_SECRET: disposable-local-rehearsal-secret-over-32-bytes
+      CARDS_PUBLIC_URL: http://localhost:3096
+      FRONTEND_URL: http://localhost:3096
+      CORS_ORIGINS: http://localhost:3096
+      TRUSTED_PROXY_HOPS: '1'
+      CARDS_EMAIL_TRANSPORT: file
+      CARDS_EMAIL_OUTBOX: /outbox
+    volumes: [../.local/readiness-outbox:/outbox]
+    depends_on:
+      db:
+        condition: service_healthy
+  cards-web:
+    image: cards-web:readiness
+    build:
+      context: ../..
+      dockerfile: cards/deploy/Dockerfile
+      secrets: [fontawesome_token]
+    ports: ["127.0.0.1:3096:8080"]
+    depends_on:
+      cards-api:
+        condition: service_healthy
+secrets:
+  fontawesome_token:
+    environment: FONTAWESOME_PACKAGE_TOKEN
