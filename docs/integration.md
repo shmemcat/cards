@@ -34,8 +34,9 @@ The local runner performs no production migration or deployment.
    Keep existing IDs and password hashes. Do not replace it with the fresh Cards
    SQLite database.
 2. Run `flask db upgrade` against a restored staging copy, then against live during
-   deployment. Migrations **017–018** add `users.auth_version` default 0,
-   `account_sessions`, and `euchre_game_results`; they do not rewrite existing
+   deployment. Migrations **017–019** add `users.auth_version` default 0,
+   `account_sessions`, `euchre_game_results`, multiplayer result counters and
+   `euchre_tables`; they do not rewrite existing
    users, passwords, profiles, Hearts games, or statistics.
 3. Set API `CARDS_PUBLIC_URL=https://cards.shmem.dev`,
    `FRONTEND_URL=https://cards.shmem.dev`, `CORS_ORIGINS=https://cards.shmem.dev`.
