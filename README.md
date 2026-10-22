@@ -66,7 +66,7 @@ Provider delivery uses a bounded background queue; errors are logged by the API
 and users can request another link.
 
 Live Hearts accounts are preserved by deploying the API against the **existing
-live Hearts database**, then applying migration **017**. The local database is
+live Hearts database**, then applying migrations **017–018**. The local database is
 separate. See [deployment and migration notes](docs/integration.md).
 
 ## Build and checks
@@ -77,9 +77,38 @@ npm run preview
 ```
 
 `dist/` contains static files. The Node preview also proxies `/api/`; another
-static host needs its own API routing. Final game mounts and subdomain redirects
-belong to the hosting cutover and are not enabled by local development.
+static host needs its own API routing. The production gateway in `deploy/` serves the hub, proxies independently built
+games at `/hearts/` and `/euchre/`, and handles old subdomain redirects. It is separate from this local development server.
 Account tests live in `../hearts/api/tests/test_shared_accounts.py`.
+
+## Production
+
+The intended home is **https://cards.shmem.dev/**, with both games and one login
+on the same origin. Push a version tag such as `v1.2.3` in the relevant repo:
+Cards publishes `cards-web`, Euchre publishes `euchre-web`, and Hearts publishes
+`hearts-api`, `hearts-web`, and `hearts-cards-web` to GHCR. Successful workflows
+publish versioned images and promote `latest`. Each game builds its own code;
+no cross-repository access token is needed. Hearts and Euchre each need the
+`FONTAWESOME_PACKAGE_TOKEN` Actions secret. The hub needs no package token.
+
+After the first reviewed cutover, Podman's existing updater checks every minute
+and restarts changed containers. Health checks gate startup and allow rollback
+on failed starts. These are rolling updates; keep API changes backward compatible
+with the previous frontend. The first account migration still requires the
+backup and verification sequence below before publishing a Hearts release.
+
+The actual host uses NixOS, Podman, and the existing PostgreSQL `shmemcity`
+database's `hearts` schema. Infrastructure changes live in the sibling `infra`
+checkout, whose authoritative origin is Forgejo. Follow the
+[deployment runbook](docs/integration.md) before enabling the release or redirects.
+Never deploy `scripts/account-dev.py` or `.local/accounts.sqlite` to production.
+
+For an isolated local rehearsal, `deploy/compose.verify.yml` provides RAM-backed
+PostgreSQL and file-only email. Against a running gateway, use:
+
+```powershell
+node scripts/check-deployment.mjs http://localhost:3096
+```
 
 ## Assets
 

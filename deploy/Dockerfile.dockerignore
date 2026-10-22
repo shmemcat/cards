@@ -1,0 +1,16 @@
+**
+!public/
+!public/**
+!deploy/
+!deploy/nginx.conf
+!deploy/proxy.conf
+**/node_modules
+**/.git
+**/.env
+**/.env.*
+**/dist
+**/out
+**/.local
+**/*.tsbuildinfo
+**/.agents
+**/.codex
