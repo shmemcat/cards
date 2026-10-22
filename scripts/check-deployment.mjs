@@ -34,7 +34,7 @@ for (const path of ['/', '/user/', '/hearts/', '/hearts/about', '/euchre/', '/eu
     assert.doesNotMatch(resource.headers.get('content-type'), /text\/html/, asset);
   }
 }
-for (const path of ['/__dev/mail/', '/.env', '/hearts/assets/missing.js', '/euchre/assets/missing.css']) {
+for (const path of ['/__dev/mail/', '/.env', '/hearts/.env', '/euchre/.env', '/hearts/assets/missing.js', '/euchre/assets/missing.css']) {
   assert.equal((await get(path)).status, 404, path);
 }
 for (const [path, host, destination] of [
@@ -48,6 +48,8 @@ for (const [path, host, destination] of [
   assert.equal(response.headers.get('location'), destination, path);
 }
 assert.equal((await get('/api/health')).status, 200);
+// A dropped query would use the default valid category and incorrectly return 200.
+assert.equal((await get('/api/account/euchre/leaderboard?category=smoke-invalid')).status, 400);
 const session = await get('/api/account/session');
 assert.equal(session.status, 200);
 assert.equal(session.headers.get('cache-control'), 'no-store');

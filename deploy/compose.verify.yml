@@ -19,27 +19,52 @@ services:
     environment:
       FLASK_APP: hearts:app
       DATABASE_URL: postgresql://cards_check:disposable-local-rehearsal@db:5432/cards_check
-      PGOPTIONS: '-c search_path=hearts,public'
+      PGOPTIONS: "-c search_path=hearts,public"
       JWT_SECRET: disposable-local-rehearsal-secret-over-32-bytes
       CARDS_PUBLIC_URL: http://localhost:3096
       FRONTEND_URL: http://localhost:3096
       CORS_ORIGINS: http://localhost:3096
-      TRUSTED_PROXY_HOPS: '1'
+      TRUSTED_PROXY_HOPS: "1"
       CARDS_EMAIL_TRANSPORT: file
       CARDS_EMAIL_OUTBOX: /outbox
     volumes: [../.local/readiness-outbox:/outbox]
+    networks:
+      default:
+        aliases: [api]
     depends_on:
       db:
         condition: service_healthy
+  hearts-web:
+    image: hearts-cards-web:readiness
+    build:
+      context: ../../hearts/web
+      args:
+        VITE_BASE_PATH: /hearts/
+        VITE_SHARED_ACCOUNTS: "true"
+      secrets: [fontawesome_token]
+    depends_on:
+      cards-api:
+        condition: service_healthy
+  euchre-web:
+    image: euchre-web:readiness
+    build:
+      context: ../../euchre/web
+      args:
+        VITE_BASE_PATH: /euchre/
+        VITE_ACCOUNT_API_URL: /api/account
+      secrets: [fontawesome_token]
   cards-web:
     image: cards-web:readiness
     build:
-      context: ../..
-      dockerfile: cards/deploy/Dockerfile
-      secrets: [fontawesome_token]
+      context: ..
+      dockerfile: deploy/Dockerfile
     ports: ["127.0.0.1:3096:8080"]
     depends_on:
       cards-api:
+        condition: service_healthy
+      hearts-web:
+        condition: service_healthy
+      euchre-web:
         condition: service_healthy
 secrets:
   fontawesome_token:

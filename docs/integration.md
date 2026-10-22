@@ -41,9 +41,10 @@ The local runner performs no production migration or deployment.
    `FRONTEND_URL=https://cards.shmem.dev`, `CORS_ORIGINS=https://cards.shmem.dev`.
    Retain the existing `DATABASE_URL`, `JWT_SECRET`, SMTP2GO key, and verified sender.
    Keep credentials in server configuration.
-4. Build the combined image in `deploy/Dockerfile`. It enables shared accounts,
-   builds Hearts with `VITE_BASE_PATH=/hearts/`, and builds Euchre with
+4. Build the gateway in `deploy/Dockerfile`, Hearts with
+   `VITE_SHARED_ACCOUNTS=true` and `VITE_BASE_PATH=/hearts/`, and Euchre with
    `VITE_BASE_PATH=/euchre/` and `VITE_ACCOUNT_API_URL=/api/account`.
+   Their release workflows supply these build settings.
 5. Route `/api/` to the Hearts API, stripping `/api` as the development proxies do.
    Forward cookies and Origin unchanged, keep account responses uncached, and use
    HTTPS. Keep `/user/` on the hub. Preserve old verification/reset URLs or redirect
@@ -67,8 +68,9 @@ does not share credentials with arbitrary `shmem.dev` subdomains.
 - `/api/`: Hearts API, including shared accounts.
 - `/socket.io/`: Hearts game service, including WebSocket upgrades.
 
-`deploy/nginx.conf` serves both game prefixes and their deep links, returns real
-404s for missing assets, and blocks hidden files and development mail. It proxies
+`deploy/nginx.conf` strips each game prefix and proxies to its own web container;
+each game handles deep links and missing-asset 404s. The gateway blocks hidden
+files and development mail. It proxies
 the account/game API and sockets. Old subdomains preserve paths and queries;
 old verification/recovery links reach the matching hub form. Keep HTTPS and DNS
 for those old names. Local game redirects remain development-only.
@@ -90,28 +92,35 @@ existing DATABASE_URL including its schema search path. This is not a Docker
 database volume. Keep the encrypted `/run/secrets/hearts-environment` unchanged.
 
 The infra modules upgrade the existing API, retain its `api` network alias, add
-`cards-api`, and put the combined web app at `10.100.0.2:6667`. The old Hearts web
+`cards-api`, and expose only the Cards gateway at `10.100.0.2:6667`.
+The two game web containers have no host ports. The gateway resolves container
+names through Podman DNS at `10.6.0.1`, including after automatic restarts. The old Hearts web
 app remains at 6666 for rollback. The API trusts exactly two private proxies;
 the public edge overwrites incoming forwarding headers.
 
-Run the Cards repository's manual **Release Cards** workflow using full reviewed
-Hearts/Euchre commit SHAs and a fresh release tag. Configure its
-`FONTAWESOME_PACKAGE_TOKEN` Actions secret with the existing licensed package
-token. The workflow tests the matching sources and publishes
-`ghcr.io/shmemcat/cards-api:<tag>` and `cards-web:<tag>` together, without touching
-`latest`. Ensure nuttybox can pull both images.
+Each repository has a **Release** workflow triggered by pushed `v*` tags (for
+example `v1.2.3`). A manual run takes an existing version tag and checks out that
+exact tag. Cards publishes `ghcr.io/shmemcat/cards-web`, Euchre publishes
+`euchre-web`, and Hearts publishes `hearts-api`, `hearts-web` (legacy root), and
+`hearts-cards-web` (shared login under `/hearts/`). Workflows test sources before
+publishing versioned images and then promoting `latest`. Hearts finishes all
+three versioned builds before promotion, but separate containers update in turn;
+this is not an atomic deployment. Preserve compatibility with the previous API
+and frontend during releases. Ordinary branch commits do not deploy.
 
-The Font Awesome Actions secret must be configured before building. With
-Hearts and Euchre public, no separate source-access
-token is needed. If Euchre stays private, optionally set **CARDS_SOURCE_TOKEN**
-to a fine-grained token restricted to `shmemcat/euchre` with **Contents: read**
-(and GitHub's required metadata access). The default workflow token cannot read
-another private repository. Source credentials are not persisted in Git config.
-Never put credentials into source files or build args.
-Nuttybox currently has no GHCR login. After publication, make the two built image
-packages publicly pullable or configure private registry pull credentials on the
-server before selecting the release. This does not require making the Cards or
-Euchre source repositories public.
+Hearts and Euchre each require `FONTAWESOME_PACKAGE_TOKEN` in their own Actions
+secrets. It is supplied through BuildKit secrets, never Docker build arguments.
+Cards no longer needs that token. No cross-repository source token is needed.
+Nuttybox has no GHCR login: make all four Cards image packages publicly pullable
+before activation, or configure reviewed private registry credentials. Public
+source repositories alone do not guarantee public package visibility.
+
+With `shmem.cards.enable = true`, the existing Podman timer checks all four images
+every minute. Registry labels opt containers in; health checks and
+`sdnotify=healthy` wait for startup and permit Podman's failed-start rollback.
+A failed initial health check does not validate all game or account flows, and
+image rollback does not undo database migrations. The gateway dynamically
+resolves upstream addresses so it follows recreated containers.
 
 Before deployment, pause account/game writes, take a root-only live Hearts schema
 backup, and verify an isolated restore. With the new image and existing database
@@ -119,15 +128,24 @@ environment, run `python -m hearts.account_snapshot snapshot` before migration
 and `python -m hearts.account_snapshot verify -` afterward with the saved JSON on
 stdin. It outputs only columns, row counts, and digests. Retain existing secrets.
 
-After DNS and the reviewed gateway config are ready, select
-`shmem.cards.release = "<tag>";` on nuttybox. It defaults to null and does not
-activate until selected. Verify Cards on HTTPS, then enable
-`shmem.cards.redirectLegacy = true;` on nuttygate. Emily's gateway deployment
-requires her sudo password. The old Hearts redirect defaults to false.
+Before the first Hearts version release, stop the existing automatic updater
+for the maintenance window: its live API already follows `hearts-api:latest`.
+Confirm no update job is running. Publish and verify the reviewed image versions
+while updates are paused, then follow **infra/docs/cards.md** for migration and
+HTTPS checks. Restart the updater only after these pass.
 
-For rollback, restore the old routing and reviewed API image while leaving
-additive schema changes in place. Do not restore a stale backup over newer
-account/game writes as a routine rollback.
+After DNS and the reviewed gateway config are ready, set
+`shmem.cards.enable = true;` on nuttybox. It defaults to false. For the first
+cutover, set `shmem.cards.autoUpdate = false;` and pin all four
+`shmem.cards.images.{api,gateway,hearts,euchre}` to reviewed version tags or digests.
+After verification, remove pins and enable `autoUpdate` to follow future tags.
+Then enable `shmem.cards.redirectLegacy = true;` on nuttygate. Emily's gateway
+deployment requires her sudo password. The old Hearts redirect defaults to false.
+
+For rollback, disable `autoUpdate` and pin a previous compatible image using the
+same image options, then apply the reviewed configuration. Restore old Hearts
+routing if necessary. Leave additive schema changes in place; do not restore a
+stale backup over newer account/game writes as a routine rollback.
 
 ## DNS and SMTP2GO
 

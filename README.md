@@ -77,19 +77,25 @@ npm run preview
 ```
 
 `dist/` contains static files. The Node preview also proxies `/api/`; another
-static host needs its own API routing. The production gateway in `deploy/` builds
-both games at `/hearts/` and `/euchre/`, serves the hub, and handles old subdomain
-redirects. It is separate from this local development server.
+static host needs its own API routing. The production gateway in `deploy/` serves the hub, proxies independently built
+games at `/hearts/` and `/euchre/`, and handles old subdomain redirects. It is separate from this local development server.
 Account tests live in `../hearts/api/tests/test_shared_accounts.py`.
 
 ## Production
 
 The intended home is **https://cards.shmem.dev/**, with both games and one login
-on the same origin. The combined image and matching API are published together
-through the manual **Release Cards** workflow using exact game commit SHAs and
-a new release tag. They do not replace the existing auto-updated `latest` images.
-Set the workflow's `FONTAWESOME_PACKAGE_TOKEN` secret. Public game repositories
-need no separate source-access token.
+on the same origin. Push a version tag such as `v1.2.3` in the relevant repo:
+Cards publishes `cards-web`, Euchre publishes `euchre-web`, and Hearts publishes
+`hearts-api`, `hearts-web`, and `hearts-cards-web` to GHCR. Successful workflows
+publish versioned images and promote `latest`. Each game builds its own code;
+no cross-repository access token is needed. Hearts and Euchre each need the
+`FONTAWESOME_PACKAGE_TOKEN` Actions secret. The hub needs no package token.
+
+After the first reviewed cutover, Podman's existing updater checks every minute
+and restarts changed containers. Health checks gate startup and allow rollback
+on failed starts. These are rolling updates; keep API changes backward compatible
+with the previous frontend. The first account migration still requires the
+backup and verification sequence below before publishing a Hearts release.
 
 The actual host uses NixOS, Podman, and the existing PostgreSQL `shmemcity`
 database's `hearts` schema. Infrastructure changes live in the sibling `infra`
