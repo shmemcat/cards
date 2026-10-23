@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy Cards games"
+  short_description: "Test, commit, release and deploy Hearts, Euchre or Cards"
+  default_prompt: "Use $deploy hearts to release all current Hearts changes to production."

@@ -1,6 +1,6 @@
 # Independent releases and isolated local integration
 
-The split services are the local development default. Immutable component images are published independently from deployment activation. Production already runs separate accounts, Hearts and Euchre services; this follow-up changes only local entrypoints and legacy publishing policy, preserving all production and guarded-rollback pins.
+The split services are the local development default. Immutable component images are published independently from deployment activation. Production already runs separate accounts, Hearts and Euchre services. The [deploy skill](../skills/deploy/SKILL.md) handles all current code in a selected app repository, component publishing, rehearsal and promotion. Its [operations reference](../skills/deploy/references/operations.md) describes the one-time reviewed host activation required before routine releases can deploy without Infra pin PRs. Preparing this capability preserves the running production pins and guarded rollback.
 
 ## Release one backend
 
@@ -54,7 +54,7 @@ For an approved read-only production dump, use `npm run test:production-restore 
 
 To prepare a candidate manifest that changes one component, run `node scripts/component-pins.mjs old-pins.json hearts IMAGE@sha256:DIGEST candidate-pins.json` with the full Hearts reference from its release record. The utility validates all four image identities, preserves the other three pins, and writes a new file instead of overwriting the previous one. Use the same command with the previous digest to prepare a rollback candidate.
 
-Rehearse the candidate manifest before requesting the separately reviewed Infra pin/routing change. Nothing in these workflows or utilities changes production pins, promotes moving tags, applies production migrations, or deploys containers. A safe code rollback retains additive schemas, account revocation/deletion receipts, and exactly one writer for each game.
+Rehearse the candidate manifest before promotion. Once the reviewed host release capability is activated, use `cards-release` with the actual published component records and a fresh host generation; routine application image updates require no Infra commit, PR or host rebuild. Infrastructure, networking, credentials and release-policy changes still use Infra review. Publishing workflows alone do not deploy containers or promote moving tags. A safe code rollback retains additive schemas, account revocation/deletion receipts, and exactly one writer for each game. Schema changes use the explicit maintenance/migration procedure before promotion.
 
 ## Verification status
 
