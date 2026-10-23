@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { parse } from 'yaml';
 import { validatePins, repositories } from './container-stack.mjs';
 import { replacePin } from './component-pins.mjs';
+import { validateBackupHost, productionDumpCommand, backupConfigArgument, validateRestoreArguments } from './production-backup.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const yaml = async (path) => parse(await readFile(resolve(root, path), 'utf8'));
@@ -35,6 +36,20 @@ test('candidate promotion and rollback change only the selected digest', () => {
   ])
     assert.throws(() => replacePin(fakePins, 'hearts', image));
   assert.throws(() => validatePins({ ...fakePins, extra: 'ignored' }));
+});
+
+test('production restore uses a read-only streamed dump and rejects SSH option injection', () => {
+  assert.equal(validateBackupHost('cards-box'), 'cards-box');
+  for (const host of ['-oProxyCommand=anything', 'host;touch file', 'host name', 'user@host', '../host'])
+    assert.throws(() => validateBackupHost(host));
+  assert(productionDumpCommand.includes('default_transaction_read_only=on'));
+  assert(productionDumpCommand.endsWith('pg_dump --schema=hearts --format=custom --no-owner --no-acl shmemcity'));
+  assert(!productionDumpCommand.includes('--file'));
+  assert.equal(backupConfigArgument(resolve(root, '.local/infra-ssh-config')), '.local/infra-ssh-config');
+  assert.throws(() => backupConfigArgument(resolve(root, '.local/config with spaces')));
+  assert.doesNotThrow(() => validateRestoreArguments(['--pins', 'reviewed.json', '--ssh-host', 'cards-box']));
+  for (const args of [['--help'], ['--config-only'], ['--pins'], ['--pins', '--ssh-host', 'cards-box'], ['--build', 'yes']])
+    assert.throws(() => validateRestoreArguments(args));
 });
 
 test('the container stack has serial migrations, separate roles, and no external data or public private-service ports', async () => {

@@ -185,3 +185,5 @@ change, and logout/revocation using file-only mail. The read-only
 `node scripts/check-deployment.mjs http://localhost:3096` check covers combined
 routes, assets, deep-link refresh, old redirects/queries, the API, and Socket.IO.
 Remove the isolated restored database and private test mail after the rehearsal.
+
+On 2026-10-22, the [split-service production-restore rehearsal](../release/rehearsals/production-restore-2026-10-22/README.md) passed against a fresh read-only dump of the current `019` schema, using the published immutable image pins. All original columns across 11 tables matched through repeated service migrations and cold startup, and all 31 restored Hearts solo saves opened. Runtime grants, existing account data, independent component replacement, and deletion passed. One expired lobby and one expired anonymous session were removed by normal housekeeping only in the isolated copy. Production containers, updater, image digests, and data were unchanged; the restored database and test mail were removed. Repeat the backup/current-state checks at the separately reviewed cutover.

@@ -4,19 +4,19 @@ import { setTimeout as delay } from 'node:timers/promises';
 export function startProcess(
   command,
   args,
-  { cwd, env = process.env, label = command, echo = false } = {}
+  { cwd, env = process.env, label = command, echo = false, stdin = 'ignore', captureStdout = true } = {}
 ) {
   const child = spawn(command, args, {
     cwd,
     env,
     windowsHide: true,
     detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: [stdin, 'pipe', 'pipe'],
   });
   let output = '',
     stdout = '',
     failure;
-  for (const stream of [child.stdout, child.stderr])
+  for (const stream of [captureStdout ? child.stdout : null, child.stderr].filter(Boolean))
     stream.on('data', (data) => {
       output = (output + data).slice(-16000);
       if (stream === child.stdout) stdout = (stdout + data).slice(-16000);

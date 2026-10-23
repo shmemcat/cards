@@ -17,3 +17,17 @@ test('failed tools retain stderr in their error', async () => {
   ]);
   await assert.rejects(process.success(), /migration refused/);
 });
+
+test('binary backup streams are preserved without entering diagnostic capture', async () => {
+  const process = startProcess(globalThis.process.execPath, ['-e',
+    'process.stdin.pipe(process.stdout);',
+  ], { stdin: 'pipe', captureStdout: false });
+  const chunks = [];
+  process.child.stdout.on('data', chunk => chunks.push(chunk));
+  const bytes = Buffer.from([0, 255, 128, 10, 13, 0, 65]);
+  process.child.stdin.end(bytes);
+  await process.success();
+  assert.deepEqual(Buffer.concat(chunks), bytes);
+  assert.equal(process.stdout(), '');
+  assert.equal(process.logs(), '');
+});

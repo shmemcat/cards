@@ -21,7 +21,9 @@
     "test:split": "node --test scripts/split-stack.test.mjs",
     "test:release": "node --test scripts/component-release.test.mjs scripts/release-contracts.test.mjs scripts/service-process.test.mjs",
     "test:images": "node scripts/rehearse-images.mjs",
-    "test:postgres": "node scripts/rehearse-images.mjs --build --postgres"
+    "test:postgres": "node scripts/rehearse-images.mjs --build --postgres",
+    "test:production-restore": "node scripts/rehearse-production-restore.mjs",
+    "test:restore-audit": "uv run --project api --locked --extra dev python -m unittest discover -s scripts -p restore_audit_test.py"
   },
   "devDependencies": {
     "socket.io-client": "4.8.3",

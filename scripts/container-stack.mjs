@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { startProcess, waitForService } from './service-process.mjs';
 import { freePort, isolatedEnvironment, root } from './split-stack.mjs';
+import { streamProductionRestore } from './production-backup.mjs';
 
 export const repositories = {
   accounts: 'cards-accounts-api',
@@ -36,7 +37,11 @@ export async function startContainerStack({
   echo = false,
   signal,
   onCreated,
+  databaseSchema = 'public',
+  prepareDatabase,
+  privateData = false,
 } = {}) {
+  if (!['public', 'hearts'].includes(databaseSchema)) throw new Error('Unsupported rehearsal schema');
   if (!build) validatePins(pins || {});
   await mkdir(resolve(root, '.local'), { recursive: true });
   const directory = await mkdtemp(resolve(root, '.local/split-images-'));
@@ -51,6 +56,8 @@ export async function startContainerStack({
     SPLIT_PROJECT: project,
     SPLIT_PORT: String(port),
     SPLIT_PUBLIC_URL: `http://localhost:${port}`,
+    SPLIT_DATABASE_OPTIONS: databaseSchema === 'hearts' ? '?options=-csearch_path%3Dhearts' : '',
+    SPLIT_PGOPTIONS: databaseSchema === 'hearts' ? '-csearch_path=hearts' : '',
     SPLIT_OUTBOX: outbox,
     SPLIT_JWT_SECRET: credential(),
     SPLIT_HEARTS_READ: credential(),
@@ -88,6 +95,14 @@ export async function startContainerStack({
     try {
       await process.success();
       return (capture ? process.stdout() : process.logs()).trim();
+    } catch (error) {
+      if (privateData) {
+        const audit = extra.includes('/rehearsal/restore-audit.py')
+          ? process.logs().match(/Original records changed in [a-z_]+(?:; columns=[a-z_,]*; rows=[0-9,]+)?|Private audit failed: [A-Za-z]+|Expired restored credentials were not cleaned up/)
+          : null;
+        throw new Error(audit?.[0] || `Isolated ${extra[0]} failed; private database output withheld.`);
+      }
+      throw error;
     } finally {
       signal?.removeEventListener('abort', abort);
     }
@@ -96,6 +111,11 @@ export async function startContainerStack({
     directory,
     port,
     command,
+    restoreProduction: (options) => streamProductionRestore({
+      ...options, args: [...args, 'exec', '-T', 'db', 'pg_restore', '--exit-on-error',
+        '--no-owner', '--no-acl', '-U', 'migrator', '-d', 'split_rehearsal'],
+      env, signal,
+    }),
     base: (role) => {
       if (role !== 'gateway') throw new Error('Private container ports are not published');
       return `http://127.0.0.1:${port}`;
@@ -179,12 +199,16 @@ export async function startContainerStack({
   try {
     if (build) await command(['build', 'accounts', 'hearts', 'euchre', 'gateway']);
     else await command(['pull']);
+    if (prepareDatabase) {
+      await command(['up', '-d', '--wait', '--wait-timeout', '60', 'db']);
+      await prepareDatabase(stack);
+    }
     await command(['up', '-d', '--wait', '--wait-timeout', '120']);
     await waitForService(stack.base('gateway') + '/api', 'cards-accounts', null, 60000);
     await stack.checkPrivileges();
     return stack;
   } catch (error) {
-    const logs = await command(['logs', '--no-color', '--tail', '40']).catch(() => '');
+    const logs = privateData ? '' : await command(['logs', '--no-color', '--tail', '40']).catch(() => '');
     await stack.close().catch(() => {});
     throw new Error(error.message + '\n' + logs);
   }
