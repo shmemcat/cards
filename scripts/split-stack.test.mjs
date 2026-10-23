@@ -12,7 +12,7 @@ import {
 } from './split-stack.mjs';
 import { verifySplitStack } from './verify-split-stack.mjs';
 
-test('split routes preserve aliases and queries while default routing stays combined', () => {
+test('split routes preserve aliases and queries while explicit combined routing remains supported', () => {
   const accounts = new URL('http://accounts.invalid:5001');
   const split = {
     accounts,
@@ -110,7 +110,7 @@ test(
 );
 
 test(
-  'the opt-in Nginx routes use separate backends and preserve game recovery',
+  'the Nginx rehearsal routes use separate backends and preserve game recovery',
   { timeout: 120000, skip: !process.env.NGINX_BIN },
   async () => {
     await mkdir(resolve(root, '.local'), { recursive: true });

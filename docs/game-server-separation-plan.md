@@ -1,6 +1,6 @@
 # Separate Hearts and Euchre servers, keep Cards accounts shared
 
-Status: staged implementation plan. Updated 2026-10-22. The first six slices are committed, and the first immutable accounts/Hearts/Euchre/gateway images are published. Native integration, workflow contracts, Compose rendering, container execution, PostgreSQL runtime grants, synthetic migration checks, and published-digest integration are verified. A fresh read-only production dump at revision `019` also passed an isolated restore rehearsal with the published pins, all original-column fingerprints, and recovery of all 31 Hearts saves. The reviewed ownership/routing cutover and a fresh maintenance-boundary backup remain pending. The combined backend remains the deployment default; none of the split services has been activated in the current deployment. See [account interface v1](account-interface-v1.md), [routing compatibility](game-routing-compatibility.md), and [component releases](component-releases.md) for scope and release order.
+Status: production separation completed on 2026-10-22. Shared accounts, separate game owners, immutable image pins, the normal split host target, guarded rollback, operational monitoring and encrypted offsite Cards recovery are verified. The milestones below preserve the original implementation sequence. This follow-up makes split local development the default and legacy publishing manual-only, with no production pin or rollback changes. See [component releases](component-releases.md) and the [cutover receipt](../release/deployments/split-2026-10-22/README.md).
 
 ## Outcome
 
@@ -14,7 +14,7 @@ Players keep one Cards account and the existing website addresses. An Euchre rel
 
 Keep the current PostgreSQL installation and existing records during this work. Separate database servers, a new identity provider, multiple game workers, and a framework rewrite are outside this migration.
 
-## What the code does today
+## Starting-point inventory (historical)
 
 The baseline inspected was Euchre `v1.1.1` (`ddbbc1a`) and Hearts/shared API `v5.0.2` (`a28ebaf`). The following describes that baseline, before the entrypoint refactor.
 
