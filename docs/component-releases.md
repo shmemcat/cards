@@ -1,6 +1,6 @@
 # Independent releases and isolated local integration
 
-This phase adds opt-in backend releases and rehearsals. It does not publish images, create tags, change the running deployment, alter the existing `v*` workflows, or update Infra. The combined `hearts-api:latest` artifact keeps its current meaning. `npm run dev` still uses the existing combined local API.
+This phase adds opt-in backend releases and rehearsals. Immutable candidate images are published separately from deployment activation. The existing `v*` workflows and Infra remain unchanged; the combined `hearts-api:latest` artifact keeps its current meaning. `npm run dev` still uses the existing combined local API.
 
 ## Release one backend
 
@@ -54,4 +54,8 @@ Rehearse the candidate manifest before requesting the separately reviewed Infra 
 
 Verified locally on 2026-10-22: all four images build and run together on PostgreSQL 18; ordered migrations and restricted runtime roles work; shared login, polling/WebSocket upgrade, game recovery, account deletion, and individual replacement of Hearts, Euchre, accounts, and the gateway pass. The synthetic legacy `019` PostgreSQL backup restores into a separate database's `hearts` schema with matching fingerprints across all eleven seeded legacy tables (including the revision table). Running the independent migrations twice preserves those fingerprints; restricted runtime schema checks pass after grants. Reports remain under `.local/split-images-*/report.json`.
 
-Local Node, both frontend proxies, and native Nginx rehearsals also pass with separate services and disposable SQLite data. Existing local database fingerprints remain unchanged. Workflow/pin contracts and Compose rendering pass. Actual published-digest integration and registry publishing have not run. Restoring a verified production backup, checking its actual deployed revision/data, and applying the reviewed cutover remain separate requirements; synthetic fixtures do not substitute for those checks. The current deployment, existing containers, release defaults, and production pins are unchanged.
+Local Node, both frontend proxies, and native Nginx rehearsals also pass with separate services and disposable SQLite data. Existing local database fingerprints remain unchanged. Workflow/pin contracts and Compose rendering pass.
+
+The first immutable releases also passed on 2026-10-22: accounts `accounts-v1.0.0`, both games `game-v1.0.0`, and gateway `gateway-v1.0.0`. Their published digests passed a local pinned-image rehearsal from a Cards-only source export, with no sibling code or source builds. [The committed candidate records](../release/rehearsals/split-v1.0.0/README.md) include exact pins, source/schema metadata, publishing workflow links, and the successful report. The manual pinned-image CI workflow remains available for repeating this check; this local rehearsal did not dispatch it.
+
+All five existing deployment image digests, pre-existing local containers, developer database fingerprints, release defaults, and production pins remained unchanged. Restoring a verified production backup, checking its actual deployed revision/data, and applying the reviewed cutover remain separate requirements; synthetic fixtures do not substitute for those checks.
