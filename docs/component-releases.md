@@ -1,6 +1,6 @@
 # Independent releases and isolated local integration
 
-This phase adds opt-in backend releases and rehearsals. Immutable candidate images are published separately from deployment activation. The existing `v*` workflows and live deployment remain unchanged; the combined `hearts-api:latest` artifact keeps its current meaning. `npm run dev` still uses the existing combined local API.
+The split services are the local development default. Immutable component images are published independently from deployment activation. Production already runs separate accounts, Hearts and Euchre services; this follow-up changes only local entrypoints and legacy publishing policy, preserving all production and guarded-rollback pins.
 
 ## Release one backend
 
@@ -10,29 +10,29 @@ Each workflow checks the service independently, builds and smoke-tests its image
 
 The registry digest is read from Docker's [JSON manifest output](https://docs.docker.com/reference/cli/docker/buildx/imagetools/inspect/), then validated before the release record is written.
 
-Existing `v*` workflows remain the transition releases: Cards publishes its gateway, Hearts publishes the combined API and its web variants, and Euchre publishes its web app. Switching these defaults or retiring the combined release is a later reviewed cutover. Do not use `v*` as a shortcut for a new independent backend release.
+Legacy `v*` publishing is manual-only with an explicit acknowledgement, no `latest` promotion, and a refusal to overwrite existing versions. Retained combined artifacts remain available for compatibility work. See [manual legacy publishing](legacy-releases.md), including the release-branch and historical-tag limitations.
 
 Cards also has a separate `gateway-vMAJOR.MINOR.PATCH` release for an immutable `cards-web` candidate. It publishes a gateway digest/source record without promoting `latest` or changing deployment pins. Use this when the split rehearsal needs newer proxy support while the live gateway must stay on its current release. It does not run a database migration.
 
 Hearts and Euchre also support frontend-only `web-vMAJOR.MINOR.PATCH` candidates through `web-release.yml`. These publish only `hearts-cards-web` or `euchre-web`, refuse existing image versions, and leave `latest` and all API images unchanged. The final activation uses Hearts `web-v1.0.1` and Euchre `web-v1.0.0`. Hearts' candidate selects `NGINX_CONFIG=nginx.cards.conf` to serve private static files without requiring the legacy API hostname; the Docker default retains `nginx.conf` for existing releases.
 
-The complete frontend/backend/rollback image set is reviewed in Infra's `activation-images.json`. Run the [final cutover and rollback rehearsal](cutover-rehearsal.md) against that manifest before selecting the explicit NixOS activation target. Normal host deployment remains combined.
+The complete frontend/backend/rollback image set is reviewed in Infra's `activation-images.json`. Run the [final cutover and rollback rehearsal](cutover-rehearsal.md) against that manifest before selecting the explicit NixOS activation target. The normal Infra `nuttybox` target now preserves split ownership; returning to the combined owner requires the explicit guarded rollback target.
 
 ## Native local stack
 
 Install Cards' test dependencies with `npm ci --ignore-scripts`. Install the three Python environments with `uv sync --locked --extra dev` in `cards/api`, `hearts/game-api`, and `euchre/api`. The two web environments need their normal dependencies for interactive development.
 
-Run `npm run dev:split` from Cards. It starts the hub on port 3000, Hearts and Euchre web servers on 3001 and 3002, and accounts/Hearts/Euchre backends on 5100/5101/5102. Occupied ports are rejected; the runner never adopts an existing service. Stop it with Ctrl+C.
+Run `npm run dev` from Cards, Hearts or Euchre after installing the sibling dependencies. Cards also retains the `dev:split` alias. Run only one copy of the shared runner. It starts the hub on port 3000, Hearts and Euchre web servers on 3001 and 3002, and accounts/Hearts/Euchre backends on 5100/5101/5102. Occupied ports are rejected; the runner never adopts an existing service. Stop it with Ctrl+C.
 
-The new stack keeps its database, stable local signing/service keys, and file-only mail in `cards/.local/split-dev/`. It never adopts `.local/accounts.sqlite`, Hearts' instance database, or inherited database credentials. Its startup runs the three explicit service migrations in order. These migrations belong to this isolated data directory; the separate service images perform no startup migrations. Tests use newly created `split-rehearsal-*` directories instead of the persistent split development directory. Private account interfaces stay off the gateway. The shared old `/socket.io` transport returns a reload response in this opt-in stack; each game uses its canonical transport path.
+The default stack keeps its database, stable local signing/service keys, and file-only mail in `cards/.local/split-dev/`. It never adopts `.local/accounts.sqlite`, Hearts' instance database, or inherited database credentials. Its startup runs the three explicit service migrations in order. These migrations belong to this isolated data directory; the separate service images perform no startup migrations. Tests use newly created `split-rehearsal-*` directories instead of the persistent split development directory. Private account interfaces stay off the gateway. The shared old `/socket.io` transport returns a reload response in the default split stack; each game uses its canonical transport path.
 
-Open `http://localhost:3000/`. Verification and recovery mail is available at `http://localhost:3000/__dev/mail/`. The game web proxies send account calls to accounts and game calls to their respective servers. Stopping this runner only stops processes it launched.
+Open `http://localhost:3000/`. Verification and recovery mail is available at `http://localhost:3000/__dev/mail/`. The game web proxies send account calls to accounts and game calls to their respective servers. Stopping this runner only stops processes it launched. For explicit combined compatibility work, Cards retains `npm run dev:combined`; it uses the previous data location and does not import or overwrite split data.
 
 ## Container rehearsal
 
 `npm run test:images -- --build` builds local accounts, Hearts, Euchre, and gateway images and runs an isolated PostgreSQL rehearsal. It requires Docker, sibling backend checkouts, and the local Node dependencies. It does not build game frontends or require their font token. This is a backend/gateway rehearsal; use the native runner for the full interactive web applications.
 
-`deploy/compose.split.yml` has no persistent database volume or published database/private-service port. It runs a fresh RAM-backed PostgreSQL database, serialized accounts/Hearts/Euchre migration jobs, and a grant job before workers start. Each worker uses a separate role with access to its own tables and sequences. Runtime probes assert that games cannot select account records and accounts cannot select Hearts data. The gateway uses the opt-in `deploy/split/proxy.conf`; the normal deployment config is not replaced.
+`deploy/compose.split.yml` has no persistent database volume or published database/private-service port. It runs a fresh RAM-backed PostgreSQL database, serialized accounts/Hearts/Euchre migration jobs, and a grant job before workers start. Each worker uses a separate role with access to its own tables and sequences. Runtime probes assert that games cannot select account records and accounts cannot select Hearts data. The rehearsal gateway uses `deploy/split/proxy.conf`; production routing remains controlled by Infra.
 
 The runner chooses a unique project name, fresh service keys, a new outbox under `.local/split-images-*`, and an available loopback gateway port. It does not read the developer `.env`. Cleanup removes only this rehearsal project's containers, network, and disposable volumes. A small `report.json` remains in that rehearsal directory; it contains image references, health versions/revisions, and check results, with no account credentials or mail links.
 
@@ -66,4 +66,4 @@ The first immutable releases also passed on 2026-10-22: accounts `accounts-v1.0.
 
 The subsequent [production-restore rehearsal](../release/rehearsals/production-restore-2026-10-22/README.md) also passed using those published pins against a fresh read-only dump of the actual `019` schema. All 11 original tables matched through repeated migrations, cold startup, and opening all 31 restored Hearts saves. Existing profile/preferences/scores/history, 501 runtime permission checks, and the full component-replacement/deletion probe passed. Normal housekeeping removed one expired lobby and one expired anonymous session only from the isolated copy; all unexpired original sessions and all other original data matched.
 
-All five existing deployment image digests, production container identities/images and updater state, pre-existing local containers, developer database fingerprints, release defaults, and production pins remained unchanged. The reviewed cutover still requires a fresh maintenance-boundary backup and current ownership/drain checks. No split service has been activated in production.
+Those rehearsal receipts describe the pre-cutover checks and are retained as historical evidence. The [production cutover](../release/deployments/split-2026-10-22/README.md) subsequently activated the reviewed split services. Infra PRs #46 and #47 made split ownership the normal host target and deployed operational monitoring/backups; the encrypted offsite Cards restore also passed. This local-default/release-policy follow-up preserves those production pins and the guarded rollback configuration.

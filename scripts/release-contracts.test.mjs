@@ -169,7 +169,7 @@ test('gateway releases publish an immutable candidate without deploying or migra
   assert.throws(() => validateTag(config, 'v1.0.0'));
 });
 
-test('component workflows publish only their own immutable artifact and preserve legacy v-tag releases', async () => {
+test('component workflows remain independent while legacy releases require manual acknowledgement', async () => {
   for (const [repo, path, context, prefix, image] of [
     ['cards', '.github/workflows/accounts-release.yml', 'api', 'accounts-v', 'cards-accounts-api'],
     [
@@ -199,7 +199,15 @@ test('component workflows publish only their own immutable artifact and preserve
         ? '.github/workflows/release.yml'
         : `../${repo}/.github/workflows/release.yml`
     );
-    assert.deepEqual(legacy.on.push.tags, ['v*']);
-    assert(JSON.stringify(legacy).includes(':latest'));
+    assert.deepEqual(Object.keys(legacy.on), ['workflow_dispatch']);
+    const inputs = legacy.on.workflow_dispatch.inputs;
+    assert.equal(inputs.release_tag.required, true);
+    assert.equal(inputs.acknowledge_legacy.type, 'boolean');
+    assert.equal(inputs.acknowledge_legacy.required, true);
+    assert.equal(inputs.acknowledge_legacy.default, false);
+    assert(!JSON.stringify(legacy).includes(':latest'));
+    assert.equal(legacy.jobs.release.env.RELEASE_TAG, '${{ inputs.release_tag }}');
+    assert.equal(legacy.jobs.release.steps[0].name, 'Require explicit legacy publication');
+    assert(legacy.jobs.release.steps.some((step) => step.name === 'Refuse existing legacy image tags'));
   }
 });

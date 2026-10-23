@@ -1,10 +1,12 @@
 # Shared Cards accounts and hosting
 
-The staged server separation now has local [game routing compatibility changes](game-routing-compatibility.md).
-Release those gateway aliases before releasing clients using the new paths.
-Both games continue to use the existing combined API until their later cutovers.
+Production runs separate accounts, Hearts and Euchre services with shared accounts.
+Local `npm run dev` uses the same ownership split and isolated local data; see
+[component releases](component-releases.md). Legacy publishing is
+[manual-only](legacy-releases.md). The original account-adoption sections below
+are historical context, not a procedure to rerun against the current deployment.
 
-## Implemented locally
+## Original shared-account implementation (historical)
 
 The shared account service lives in the existing Hearts Flask API. It reads the
 same users and Argon2 password hashes, preserving IDs, verification status,
@@ -30,7 +32,7 @@ is single-use and revokes all sessions and legacy JWTs for that account.
 HTTPS uses a host-only `__Host-cards_session` cookie with Secure, HttpOnly,
 SameSite=Lax, and Path=/.
 
-## Live account cutover
+## Original account cutover (historical)
 
 The local runner performs no production migration or deployment.
 
@@ -83,74 +85,29 @@ for those old names. Local game redirects remain development-only.
 Browser-local saves and themes do not transfer between origins. Account-owned
 data in PostgreSQL is preserved; existing players sign in once at the new home.
 
-## Actual infrastructure and release
+## Current infrastructure and release
 
-The authoritative infrastructure checkout is the sibling `infra` repository at
-`https://forge.nuttynet/nuttyverse/infra.git`. GitHub is its push mirror. Use
-GPG-signed commits and the required Forgejo review before applying changes.
-The full operator sequence is documented in **infra/docs/cards.md**.
+Infra's authoritative repository is `https://forge.nuttynet/nuttyverse/infra.git`.
+The normal `nuttybox` target runs separate `cards-accounts-api`, `hearts-game-api`,
+and `euchre-game-api` owners, a gateway and two frontend containers. Public Caddy
+on Nuttygate forwards through WireGuard to the private gateway. PostgreSQL 18
+retains the `shmemcity` database and `hearts` schema, with separate runtime roles.
+Game processes use private scoped account interfaces rather than account tables.
 
-Nuttygate (`5.78.127.247`) runs public Caddy and forwards through WireGuard to
-nuttybox. Nuttybox runs Podman and PostgreSQL 18. The existing database is
-**shmemcity**, schema **hearts**, stored at `/data/postgresql`. Preserve the
-existing DATABASE_URL including its schema search path. This is not a Docker
-database volume. Keep the encrypted `/run/secrets/hearts-environment` unchanged.
+Component release workflows publish immutable candidates and source/digest
+records. They do not migrate or deploy production. Legacy `v*` publication now
+requires manual dispatch and acknowledgement; it does not update `latest`.
+Hearts and Euchre frontend builds still need their own Font Awesome package
+secret. No cross-repository source token is required.
 
-The infra modules upgrade the existing API, retain its `api` network alias, add
-`cards-api`, and expose only the Cards gateway at `10.100.0.2:6667`.
-The two game web containers have no host ports. The gateway resolves container
-names through Podman DNS at `10.6.0.1`, including after automatic restarts. The old Hearts web
-app remains at 6666 for rollback. The API trusts exactly two private proxies;
-the public edge overwrites incoming forwarding headers.
-
-Each repository has a **Release** workflow triggered by pushed `v*` tags (for
-example `v1.2.3`). A manual run takes an existing version tag and checks out that
-exact tag. Cards publishes `ghcr.io/shmemcat/cards-web`, Euchre publishes
-`euchre-web`, and Hearts publishes `hearts-api`, `hearts-web` (legacy root), and
-`hearts-cards-web` (shared login under `/hearts/`). Workflows test sources before
-publishing versioned images and then promoting `latest`. Hearts finishes all
-three versioned builds before promotion, but separate containers update in turn;
-this is not an atomic deployment. Preserve compatibility with the previous API
-and frontend during releases. Ordinary branch commits do not deploy.
-
-Hearts and Euchre each require `FONTAWESOME_PACKAGE_TOKEN` in their own Actions
-secrets. It is supplied through BuildKit secrets, never Docker build arguments.
-Cards no longer needs that token. No cross-repository source token is needed.
-Nuttybox has no GHCR login: make all four Cards image packages publicly pullable
-before activation, or configure reviewed private registry credentials. Public
-source repositories alone do not guarantee public package visibility.
-
-With `shmem.cards.enable = true`, the existing Podman timer checks all four images
-every minute. Registry labels opt containers in; health checks and
-`sdnotify=healthy` wait for startup and permit Podman's failed-start rollback.
-A failed initial health check does not validate all game or account flows, and
-image rollback does not undo database migrations. The gateway dynamically
-resolves upstream addresses so it follows recreated containers.
-
-Before deployment, pause account/game writes, take a root-only live Hearts schema
-backup, and verify an isolated restore. With the new image and existing database
-environment, run `python -m hearts.account_snapshot snapshot` before migration
-and `python -m hearts.account_snapshot verify -` afterward with the saved JSON on
-stdin. It outputs only columns, row counts, and digests. Retain existing secrets.
-
-Before the first Hearts version release, stop the existing automatic updater
-for the maintenance window: its live API already follows `hearts-api:latest`.
-Confirm no update job is running. Publish and verify the reviewed image versions
-while updates are paused, then follow **infra/docs/cards.md** for migration and
-HTTPS checks. Restart the updater only after these pass.
-
-After DNS and the reviewed gateway config are ready, set
-`shmem.cards.enable = true;` on nuttybox. It defaults to false. For the first
-cutover, set `shmem.cards.autoUpdate = false;` and pin all four
-`shmem.cards.images.{api,gateway,hearts,euchre}` to reviewed version tags or digests.
-After verification, remove pins and enable `autoUpdate` to follow future tags.
-Then enable `shmem.cards.redirectLegacy = true;` on nuttygate. Emily's gateway
-deployment requires her sudo password. The old Hearts redirect defaults to false.
-
-For rollback, disable `autoUpdate` and pin a previous compatible image using the
-same image options, then apply the reviewed configuration. Restore old Hearts
-routing if necessary. Leave additive schema changes in place; do not restore a
-stale backup over newer account/game writes as a routine rollback.
+Production pins are reviewed in Infra's
+`nuttybox/containers/cards-split/activation-images.json`. Cards containers have no
+auto-update labels; the host updater remains available for unrelated services.
+Returning to the combined owner requires `nuttybox-cards-rollback` and its drain,
+deletion and database handoff guards. Preserve existing rollback artifacts and
+credentials; never restore an old backup over later writes for a code rollback.
+See Infra's `docs/cards-split-default.md`, `docs/cards-split-cutover.md`, and
+`docs/cards-operations.md` for the current operator procedures.
 
 ## DNS and SMTP2GO
 
