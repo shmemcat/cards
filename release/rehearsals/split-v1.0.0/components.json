@@ -1,0 +1,57 @@
+{
+  "accounts": {
+    "version": 1,
+    "component": "cards-accounts",
+    "release": "accounts-v1.0.0",
+    "image": "ghcr.io/shmemcat/cards-accounts-api@sha256:00bf7b7e56bcba9a72773572573cdc37ff4e6c31ed325200a1e5a9caf1e66528",
+    "sourceRevision": "0f77c360d74cb72da4b3b634ccf5ff6378c3660f",
+    "accountsContract": 1,
+    "schemaRevision": "accounts_001",
+    "migrationCommand": [
+      "python",
+      "-m",
+      "cards_accounts.schema",
+      "upgrade"
+    ]
+  },
+  "hearts": {
+    "version": 1,
+    "component": "hearts-game",
+    "release": "game-v1.0.0",
+    "image": "ghcr.io/shmemcat/hearts-game-api@sha256:845ca7dedf5378107694357d470b5634d73dafe0c93ebc1d14ab0544f4732434",
+    "sourceRevision": "7a28dce5314f887d4f0bcd9f8b2fecd7e7c6905b",
+    "accountsContract": 1,
+    "schemaRevision": "hearts_001",
+    "migrationCommand": [
+      "python",
+      "-m",
+      "hearts_server.schema",
+      "upgrade"
+    ]
+  },
+  "euchre": {
+    "version": 1,
+    "component": "euchre-game",
+    "release": "game-v1.0.0",
+    "image": "ghcr.io/shmemcat/euchre-game-api@sha256:eb3dc105381025d092590664b7850ec18d5200241b949aca68ae4c0caa246fa1",
+    "sourceRevision": "66843540219f89811b843fef28154229078fc7e6",
+    "accountsContract": 1,
+    "schemaRevision": "euchre_001",
+    "migrationCommand": [
+      "python",
+      "-m",
+      "euchre_server.schema",
+      "upgrade"
+    ]
+  },
+  "gateway": {
+    "version": 1,
+    "component": "cards-gateway",
+    "release": "gateway-v1.0.0",
+    "image": "ghcr.io/shmemcat/cards-web@sha256:65cc5690489fb615d02423e073e94b2201d6a8e038ce2ed439e17b821e5c0023",
+    "sourceRevision": "0f77c360d74cb72da4b3b634ccf5ff6378c3660f",
+    "accountsContract": 1,
+    "schemaRevision": null,
+    "migrationCommand": []
+  }
+}

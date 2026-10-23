@@ -1,0 +1,7 @@
+{
+  "component": "cards-gateway",
+  "image": "ghcr.io/shmemcat/cards-web",
+  "tagPrefix": "gateway-v",
+  "schemaRevision": null,
+  "package": null
+}

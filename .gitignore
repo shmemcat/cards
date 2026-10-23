@@ -6,3 +6,9 @@ dist/
 !.env.example
 *.log
 .DS_Store
+
+api/.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+api/instance/

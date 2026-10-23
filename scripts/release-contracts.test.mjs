@@ -1,0 +1,213 @@
+import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { test } from 'node:test';
+import { parse } from 'yaml';
+import { validatePins, repositories } from './container-stack.mjs';
+import { replacePin } from './component-pins.mjs';
+import {
+  validateBackupHost,
+  productionDumpCommand,
+  backupConfigArgument,
+  validateRestoreArguments,
+} from './production-backup.mjs';
+
+const root = resolve(import.meta.dirname, '..');
+const yaml = async (path) => parse(await readFile(resolve(root, path), 'utf8'));
+const fakePins = Object.fromEntries(
+  Object.entries(repositories).map(([role, image]) => [
+    role,
+    `ghcr.io/shmemcat/${image}@sha256:${'a'.repeat(64)}`,
+  ])
+);
+
+test('frontend candidate releases publish only immutable web images', async () => {
+  for (const [game, image] of [
+    ['hearts', 'hearts-cards-web'],
+    ['euchre', 'euchre-web'],
+  ]) {
+    const path = `../${game}/.github/workflows/web-release.yml`;
+    if (!existsSync(resolve(root, path))) continue;
+    const workflow = await yaml(path);
+    assert.deepEqual(workflow.on.push.tags, ['web-v*']);
+    const serialized = JSON.stringify(workflow);
+    assert(!serialized.includes(':latest') && !serialized.includes('working-directory":"api'));
+    const builds = workflow.jobs.release.steps.filter((step) =>
+      step.uses?.startsWith('docker/build-push-action')
+    );
+    assert.equal(builds.length, 1);
+    assert.equal(builds[0].with.context, 'web');
+    assert(builds[0].with.tags.startsWith(`ghcr.io/shmemcat/${image}:`));
+    assert(workflow.jobs.release.steps.some((step) => step.run?.includes('--web check')));
+    assert(workflow.jobs.release.steps.some((step) => step.run?.includes('--web record')));
+  }
+});
+
+test('candidate promotion and rollback change only the selected digest', () => {
+  validatePins(fakePins);
+  const next = replacePin(
+    fakePins,
+    'hearts',
+    `ghcr.io/shmemcat/hearts-game-api@sha256:${'b'.repeat(64)}`
+  );
+  assert.equal(next.accounts, fakePins.accounts);
+  assert.equal(next.euchre, fakePins.euchre);
+  assert.equal(next.gateway, fakePins.gateway);
+  assert.notEqual(next.hearts, fakePins.hearts);
+  assert.deepEqual(replacePin(next, 'hearts', fakePins.hearts), fakePins);
+  for (const image of [
+    'latest',
+    'ghcr.io/shmemcat/hearts-game-api:game-v1.0.0',
+    'ghcr.io/shmemcat/euchre-game-api@sha256:' + 'a'.repeat(64),
+  ])
+    assert.throws(() => replacePin(fakePins, 'hearts', image));
+  assert.throws(() => validatePins({ ...fakePins, extra: 'ignored' }));
+});
+
+test('production restore uses a read-only streamed dump and rejects SSH option injection', () => {
+  assert.equal(validateBackupHost('cards-box'), 'cards-box');
+  for (const host of [
+    '-oProxyCommand=anything',
+    'host;touch file',
+    'host name',
+    'user@host',
+    '../host',
+  ])
+    assert.throws(() => validateBackupHost(host));
+  assert(productionDumpCommand.includes('default_transaction_read_only=on'));
+  assert(
+    productionDumpCommand.endsWith(
+      'pg_dump --schema=hearts --format=custom --no-owner --no-acl shmemcity'
+    )
+  );
+  assert(!productionDumpCommand.includes('--file'));
+  assert.equal(
+    backupConfigArgument(resolve(root, '.local/infra-ssh-config')),
+    '.local/infra-ssh-config'
+  );
+  assert.throws(() => backupConfigArgument(resolve(root, '.local/config with spaces')));
+  assert.doesNotThrow(() =>
+    validateRestoreArguments(['--pins', 'reviewed.json', '--ssh-host', 'cards-box'])
+  );
+  for (const args of [
+    ['--help'],
+    ['--config-only'],
+    ['--pins'],
+    ['--pins', '--ssh-host', 'cards-box'],
+    ['--build', 'yes'],
+  ])
+    assert.throws(() => validateRestoreArguments(args));
+});
+
+test('the container stack has serial migrations, separate roles, and no external data or public private-service ports', async () => {
+  const config = await yaml('deploy/compose.split.yml');
+  assert.equal(
+    config.services['hearts-migrate'].depends_on['accounts-migrate'].condition,
+    'service_completed_successfully'
+  );
+  assert.equal(
+    config.services['euchre-migrate'].depends_on['hearts-migrate'].condition,
+    'service_completed_successfully'
+  );
+  assert.equal(
+    config.services.grants.depends_on['euchre-migrate'].condition,
+    'service_completed_successfully'
+  );
+  const databases = [];
+  for (const role of ['accounts', 'hearts', 'euchre']) {
+    const service = config.services[role];
+    assert(service.environment.DATABASE_URL.includes(role + '_runtime:'));
+    assert(!service.environment.DATABASE_URL.includes('migrator:'));
+    assert(!service.ports && !service.build && !service.env_file);
+    assert(!service.environment.JWT_SECRET || role === 'accounts');
+    databases.push(service.environment.DATABASE_URL);
+    assert.equal(service.depends_on.grants.condition, 'service_completed_successfully');
+  }
+  assert.equal(new Set(databases).size, 3);
+  assert(!config.volumes && !config.networks);
+  assert(config.services.db.tmpfs.length);
+  assert(!config.services.db.ports);
+  assert.equal(config.services.gateway.ports.length, 1);
+});
+
+test('pinned-image CI never checks out or builds another application repository', async () => {
+  const workflow = await yaml('.github/workflows/split-integration.yml');
+  assert.deepEqual(Object.keys(workflow.on), ['workflow_dispatch']);
+  assert.equal(workflow.permissions.packages, 'read');
+  const steps = workflow.jobs.verify.steps;
+  assert.equal(steps.filter((step) => step.uses?.startsWith('actions/checkout@')).length, 1);
+  assert(
+    !steps.some(
+      (step) => step.with?.repository || step.uses?.startsWith('docker/build-push-action')
+    )
+  );
+  assert(steps.some((step) => step.run === 'npm run test:images'));
+});
+
+test('gateway releases publish an immutable candidate without deploying or migrating', async () => {
+  const workflow = await yaml('.github/workflows/gateway-release.yml');
+  assert.deepEqual(workflow.on.push.tags, ['gateway-v*']);
+  assert(!JSON.stringify(workflow).includes(':latest'));
+  const steps = workflow.jobs.release.steps;
+  const build = steps.find((step) => step.uses?.startsWith('docker/build-push-action'));
+  assert.equal(build.with.context, '.');
+  assert.equal(build.with.file, 'deploy/Dockerfile');
+  assert(build.with.tags.startsWith('ghcr.io/shmemcat/cards-web:'));
+  assert(steps.some((step) => step.run?.includes('--gateway check')));
+  assert(steps.some((step) => step.run?.includes('--gateway record')));
+  const config = JSON.parse(await readFile(resolve(root, 'release/gateway.json'), 'utf8'));
+  const { releaseRecord, validateTag } = await import('./component-release.mjs');
+  const record = releaseRecord(
+    config,
+    'gateway-v1.0.0',
+    'a'.repeat(40),
+    'sha256:' + 'b'.repeat(64)
+  );
+  assert.equal(record.schemaRevision, null);
+  assert.deepEqual(record.migrationCommand, []);
+  assert.throws(() => validateTag(config, 'v1.0.0'));
+});
+
+test('component workflows remain independent while legacy releases require manual acknowledgement', async () => {
+  for (const [repo, path, context, prefix, image] of [
+    ['cards', '.github/workflows/accounts-release.yml', 'api', 'accounts-v', 'cards-accounts-api'],
+    [
+      'hearts',
+      '../hearts/.github/workflows/game-release.yml',
+      'game-api',
+      'game-v',
+      'hearts-game-api',
+    ],
+    ['euchre', '../euchre/.github/workflows/game-release.yml', 'api', 'game-v', 'euchre-game-api'],
+  ]) {
+    // Cards checks run from its own checkout; each game also runs the copied component contract tests independently.
+    if (!existsSync(resolve(root, path))) continue;
+    const workflow = await yaml(path);
+    assert.deepEqual(workflow.on.push.tags, [prefix + '*']);
+    const steps = workflow.jobs.release.steps;
+    const builds = steps.filter((step) => step.uses?.startsWith('docker/build-push-action'));
+    assert.equal(builds.length, 1);
+    assert.equal(builds[0].with.context, context);
+    assert(builds[0].with.tags.startsWith('ghcr.io/shmemcat/' + image + ':'));
+    assert(!JSON.stringify(workflow).includes(':latest'));
+    assert(steps.some((step) => step.run?.includes('component-release.mjs check')));
+    assert(steps.some((step) => step.run?.includes('component-release.mjs record')));
+    assert(steps.some((step) => step.run?.includes('{{json .Manifest}}')));
+    const legacy = await yaml(
+      repo === 'cards'
+        ? '.github/workflows/release.yml'
+        : `../${repo}/.github/workflows/release.yml`
+    );
+    assert.deepEqual(Object.keys(legacy.on), ['workflow_dispatch']);
+    const inputs = legacy.on.workflow_dispatch.inputs;
+    assert.equal(inputs.release_tag.required, true);
+    assert.equal(inputs.acknowledge_legacy.type, 'boolean');
+    assert.equal(inputs.acknowledge_legacy.required, true);
+    assert.equal(inputs.acknowledge_legacy.default, false);
+    assert(!JSON.stringify(legacy).includes(':latest'));
+    assert.equal(legacy.jobs.release.env.RELEASE_TAG, '${{ inputs.release_tag }}');
+    assert.equal(legacy.jobs.release.steps[0].name, 'Require explicit legacy publication');
+    assert(legacy.jobs.release.steps.some((step) => step.name === 'Refuse existing legacy image tags'));
+  }
+});

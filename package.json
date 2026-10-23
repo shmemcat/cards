@@ -3,13 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
-    "dev": "node scripts/dev.mjs",
+    "dev": "node scripts/dev-split.mjs",
     "dev:hub": "node --watch scripts/serve.mjs",
     "dev:accounts": "node scripts/accounts.mjs",
+    "dev:split": "node scripts/dev-split.mjs",
     "start": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
-    "preview": "node scripts/serve.mjs --dist"
+    "preview": "node scripts/serve.mjs --dist",
+    "test:routing": "node --test scripts/game-routing.test.mjs",
+    "test:accounts": "node --test scripts/accounts-integration.test.mjs",
+    "test:euchre-server": "node --test scripts/euchre-integration.test.mjs",
+    "test:hearts-server": "node --test scripts/euchre-integration.test.mjs",
+    "test:split": "node --test scripts/split-stack.test.mjs",
+    "test:release": "node --test scripts/component-release.test.mjs scripts/release-contracts.test.mjs scripts/service-process.test.mjs scripts/legacy-release.test.mjs",
+    "test:images": "node scripts/rehearse-images.mjs",
+    "test:postgres": "node scripts/rehearse-images.mjs --build --postgres",
+    "test:production-restore": "node scripts/rehearse-production-restore.mjs",
+    "test:cutover": "node scripts/rehearse-cutover.mjs",
+    "test:restore-audit": "uv run --project api --locked --extra dev python -m unittest discover -s scripts -p restore_audit_test.py",
+    "dev:combined": "node scripts/dev.mjs"
+  },
+  "devDependencies": {
+    "socket.io-client": "4.8.3",
+    "yaml": "2.9.1"
   }
 }

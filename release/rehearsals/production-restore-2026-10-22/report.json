@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "pins": {
+    "accounts": "ghcr.io/shmemcat/cards-accounts-api@sha256:00bf7b7e56bcba9a72773572573cdc37ff4e6c31ed325200a1e5a9caf1e66528",
+    "hearts": "ghcr.io/shmemcat/hearts-game-api@sha256:845ca7dedf5378107694357d470b5634d73dafe0c93ebc1d14ab0544f4732434",
+    "euchre": "ghcr.io/shmemcat/euchre-game-api@sha256:eb3dc105381025d092590664b7850ec18d5200241b949aca68ae4c0caa246fa1",
+    "gateway": "ghcr.io/shmemcat/cards-web@sha256:65cc5690489fb615d02423e073e94b2201d6a8e038ce2ed439e17b821e5c0023"
+  },
+  "builtLocally": false,
+  "source": {
+    "readOnlyProductionDump": true,
+    "database": "shmemcity",
+    "schema": "hearts",
+    "legacyRevision": "019",
+    "dumpStoredOnDisk": false,
+    "productionSigningAndMailSecretsCopied": false
+  },
+  "restoredTables": {
+    "difficulty_stats": 27,
+    "alembic_version": 1,
+    "euchre_tables": 1,
+    "active_games": 31,
+    "euchre_game_results": 2,
+    "game_results": 99,
+    "password_reset_tokens": 1,
+    "user_preferences": 5,
+    "user_stats": 9,
+    "users": 10,
+    "account_sessions": 3
+  },
+  "legacyMultiplayer": 0,
+  "migrations": {
+    "originalColumnsPreserved": true,
+    "tablesVerified": 11,
+    "expiredEuchreSnapshotsCleaned": 0,
+    "expiredAccountSessionsCleaned": 0
+  },
+  "coldStart": {
+    "originalColumnsPreserved": true,
+    "tablesVerified": 11,
+    "expiredEuchreSnapshotsCleaned": 0,
+    "expiredAccountSessionsCleaned": 0
+  },
+  "afterExistingRecovery": {
+    "originalColumnsPreserved": true,
+    "tablesVerified": 11,
+    "expiredEuchreSnapshotsCleaned": 0,
+    "expiredAccountSessionsCleaned": 0
+  },
+  "privileges": {
+    "roles": 3,
+    "permissionChecks": 501
+  },
+  "existingAccount": {
+    "existingIdentity": true,
+    "existingProfile": true,
+    "existingPreferences": true,
+    "existingScores": true,
+    "existingEuchreHistory": true,
+    "existingSoloRecovery": true,
+    "existingSoloSavesRecovered": 31,
+    "credential": "rehearsal-only opaque session; production credentials not used"
+  },
+  "checks": {
+    "components": 4,
+    "sharedLogin": true,
+    "independentRestarts": true,
+    "recovery": true,
+    "deletion": true
+  },
+  "originalRecords": {
+    "originalColumnsPreserved": true,
+    "tablesVerified": 11,
+    "expiredEuchreSnapshotsCleaned": 1,
+    "expiredAccountSessionsCleaned": 1
+  },
+  "health": {
+    "accounts": {
+      "component": "cards-accounts",
+      "revision": "0f77c360d74cb72da4b3b634ccf5ff6378c3660f",
+      "status": "ok",
+      "version": "accounts-v1.0.0"
+    },
+    "hearts": {
+      "component": "hearts-game",
+      "revision": "7a28dce5314f887d4f0bcd9f8b2fecd7e7c6905b",
+      "status": "ok",
+      "version": "game-v1.0.0"
+    },
+    "euchre": {
+      "component": "euchre-game",
+      "revision": "66843540219f89811b843fef28154229078fc7e6",
+      "status": "ok",
+      "version": "game-v1.0.0"
+    }
+  }
+}

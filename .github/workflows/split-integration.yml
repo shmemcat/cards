@@ -1,0 +1,53 @@
+name: Rehearse pinned split services
+
+on:
+  workflow_dispatch:
+    inputs:
+      accounts_image:
+        description: cards-accounts-api image with a complete sha256 digest
+        required: true
+      hearts_image:
+        description: hearts-game-api image with a complete sha256 digest
+        required: true
+      euchre_image:
+        description: euchre-game-api image with a complete sha256 digest
+        required: true
+      gateway_image:
+        description: cards-web image with a complete sha256 digest
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ACCOUNTS_IMAGE: ${{ inputs.accounts_image }}
+      HEARTS_IMAGE: ${{ inputs.hearts_image }}
+      EUCHRE_IMAGE: ${{ inputs.euchre_image }}
+      GATEWAY_IMAGE: ${{ inputs.gateway_image }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Test pinned images without sibling source checkouts or builds
+        run: npm run test:images
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: split-release-rehearsal
+          path: .local/split-images-*/report.json
+          if-no-files-found: error
