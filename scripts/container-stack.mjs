@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, chmod } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, chmod, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
@@ -40,8 +40,10 @@ export async function startContainerStack({
   databaseSchema = 'public',
   prepareDatabase,
   privateData = false,
+  cutover,
 } = {}) {
-  if (!['public', 'hearts'].includes(databaseSchema)) throw new Error('Unsupported rehearsal schema');
+  if (!['public', 'hearts'].includes(databaseSchema))
+    throw new Error('Unsupported rehearsal schema');
   if (!build) validatePins(pins || {});
   await mkdir(resolve(root, '.local'), { recursive: true });
   const directory = await mkdtemp(resolve(root, '.local/split-images-'));
@@ -50,11 +52,29 @@ export async function startContainerStack({
   await chmod(outbox, 0o777);
   const port = await freePort();
   const project = 'cards-split-' + randomBytes(5).toString('hex');
+  if (cutover) {
+    for (const [key, repository] of [
+      ['legacy', 'hearts-api'],
+      ['heartsWeb', 'hearts-cards-web'],
+      ['euchreWeb', 'euchre-web'],
+    ])
+      assert(
+        new RegExp(`^ghcr\\.io/shmemcat/${repository}@sha256:[a-f0-9]{64}$`).test(cutover[key]),
+        'Cutover requires exact component digests'
+      );
+    assert.equal(databaseSchema, 'hearts');
+    assert(privateData && prepareDatabase, 'Cutover uses a private disposable production restore');
+    await writeFile(
+      resolve(directory, 'proxy.conf'),
+      await readFile(resolve(root, 'deploy/proxy.conf'))
+    );
+  }
   const credential = () => randomBytes(40).toString('hex');
   const env = {
     ...isolatedEnvironment(),
     SPLIT_PROJECT: project,
     SPLIT_PORT: String(port),
+    SPLIT_DATABASE_NAME: cutover ? 'shmemcity' : 'split_rehearsal',
     SPLIT_PUBLIC_URL: `http://localhost:${port}`,
     SPLIT_DATABASE_OPTIONS: databaseSchema === 'hearts' ? '?options=-csearch_path%3Dhearts' : '',
     SPLIT_PGOPTIONS: databaseSchema === 'hearts' ? '-csearch_path=hearts' : '',
@@ -64,6 +84,15 @@ export async function startContainerStack({
     SPLIT_EUCHRE_READ: credential(),
     SPLIT_HEARTS_CALLBACK: credential(),
     SPLIT_EUCHRE_CALLBACK: credential(),
+    ...(cutover
+      ? {
+          LEGACY_IMAGE: cutover.legacy,
+          HEARTS_WEB_IMAGE: cutover.heartsWeb,
+          EUCHRE_WEB_IMAGE: cutover.euchreWeb,
+          SPLIT_PROXY_FILE: resolve(directory, 'proxy.conf'),
+          SPLIT_INFRA_DIR: cutover.infraDirectory,
+        }
+      : {}),
     ...Object.fromEntries(
       Object.keys(repositories).map((role) => [
         role.toUpperCase() + '_IMAGE',
@@ -80,6 +109,7 @@ export async function startContainerStack({
     '-f',
     resolve(root, 'deploy/compose.split.yml'),
     ...(build ? ['-f', resolve(root, 'deploy/compose.split.build.yml')] : []),
+    ...(cutover ? ['-f', resolve(root, 'deploy/compose.cutover.yml')] : []),
   ];
   async function command(extra, capture = false) {
     const cleanup = extra[0] === 'down';
@@ -97,10 +127,18 @@ export async function startContainerStack({
       return (capture ? process.stdout() : process.logs()).trim();
     } catch (error) {
       if (privateData) {
+        const refusal = process.logs().match(/ROLLBACK_(PENDING_DELETIONS|ACTIVE_MULTIPLAYER)/);
+        if (refusal) throw new Error(refusal[0]);
         const audit = extra.includes('/rehearsal/restore-audit.py')
-          ? process.logs().match(/Original records changed in [a-z_]+(?:; columns=[a-z_,]*; rows=[0-9,]+)?|Private audit failed: [A-Za-z]+|Expired restored credentials were not cleaned up/)
+          ? process
+              .logs()
+              .match(
+                /Original records changed in [a-z_]+(?:; columns=[a-z_,]*; rows=[0-9,]+)?|Private audit failed: [A-Za-z]+|Expired restored credentials were not cleaned up/
+              )
           : null;
-        throw new Error(audit?.[0] || `Isolated ${extra[0]} failed; private database output withheld.`);
+        throw new Error(
+          audit?.[0] || `Isolated ${extra[0]} failed; private database output withheld.`
+        );
       }
       throw error;
     } finally {
@@ -111,11 +149,26 @@ export async function startContainerStack({
     directory,
     port,
     command,
-    restoreProduction: (options) => streamProductionRestore({
-      ...options, args: [...args, 'exec', '-T', 'db', 'pg_restore', '--exit-on-error',
-        '--no-owner', '--no-acl', '-U', 'migrator', '-d', 'split_rehearsal'],
-      env, signal,
-    }),
+    restoreProduction: (options) =>
+      streamProductionRestore({
+        ...options,
+        args: [
+          ...args,
+          'exec',
+          '-T',
+          'db',
+          'pg_restore',
+          '--exit-on-error',
+          '--no-owner',
+          '--no-acl',
+          '-U',
+          'migrator',
+          '-d',
+          env.SPLIT_DATABASE_NAME,
+        ],
+        env,
+        signal,
+      }),
     base: (role) => {
       if (role !== 'gateway') throw new Error('Private container ports are not published');
       return `http://127.0.0.1:${port}`;
@@ -181,6 +234,67 @@ export async function startContainerStack({
     async close() {
       await command(['down', '--volumes', '--remove-orphans']);
     },
+    async topology(owner) {
+      assert(cutover && ['legacy', 'split'].includes(owner));
+      await command(['stop', 'gateway'], true);
+      await command(['stop', 'legacy', 'accounts', 'hearts', 'euchre'], true);
+      const running = await command(['ps', '--status', 'running', '--services'], true);
+      assert(
+        !running
+          .split(/\s+/)
+          .some((name) => ['legacy', 'accounts', 'hearts', 'euchre', 'gateway'].includes(name)),
+        'All writers and admission must stop before handoff'
+      );
+      const source =
+        owner === 'split'
+          ? resolve(cutover.infraDirectory, 'proxy.conf')
+          : resolve(root, 'deploy/proxy.conf');
+      // Truncate the existing bind-mounted inode; do not replace it by rename.
+      await writeFile(resolve(directory, 'proxy.conf'), await readFile(source));
+      await command(
+        [
+          'up',
+          '-d',
+          '--no-deps',
+          '--wait',
+          '--wait-timeout',
+          '120',
+          ...(owner === 'split' ? ['accounts', 'hearts', 'euchre'] : ['legacy']),
+        ],
+        true
+      );
+      await command(
+        [
+          'up',
+          '-d',
+          '--no-deps',
+          '--wait',
+          '--wait-timeout',
+          '60',
+          'hearts-web',
+          'euchre-web',
+          'gateway',
+        ],
+        true
+      );
+      let ready = false;
+      for (let attempt = 0; attempt < 120; attempt++) {
+        try {
+          if (
+            (
+              await fetch(stack.base('gateway') + '/api/account/session', {
+                signal: AbortSignal.timeout(1500),
+              })
+            ).ok
+          ) {
+            ready = true;
+            break;
+          }
+        } catch {}
+        await new Promise((done) => setTimeout(done, 500));
+      }
+      assert(ready, 'Selected topology did not become ready');
+    },
     async checkPrivileges() {
       for (const [role, packageName, forbidden] of [
         ['hearts', 'hearts_server', 'users'],
@@ -203,12 +317,15 @@ export async function startContainerStack({
       await command(['up', '-d', '--wait', '--wait-timeout', '60', 'db']);
       await prepareDatabase(stack);
     }
+    if (cutover) return stack;
     await command(['up', '-d', '--wait', '--wait-timeout', '120']);
     await waitForService(stack.base('gateway') + '/api', 'cards-accounts', null, 60000);
     await stack.checkPrivileges();
     return stack;
   } catch (error) {
-    const logs = privateData ? '' : await command(['logs', '--no-color', '--tail', '40']).catch(() => '');
+    const logs = privateData
+      ? ''
+      : await command(['logs', '--no-color', '--tail', '40']).catch(() => '');
     await stack.close().catch(() => {});
     throw new Error(error.message + '\n' + logs);
   }

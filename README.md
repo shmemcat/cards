@@ -130,3 +130,5 @@ The [Hearts game server](../hearts/game-api/README.md) and [Euchre game server](
 Use `npm run dev:split` for the opt-in local stack with all three separate backends and both web apps. Backend releases use separate component tags and digest records, while existing `v*` workflows retain their current behavior. See [component releases and local integration](docs/component-releases.md) for setup, tests, pinned-image CI, and promotion/rollback manifests.
 
 The published images also pass an [isolated production-restore rehearsal](release/rehearsals/production-restore-2026-10-22/README.md). The [restore runbook](docs/production-restore-rehearsal.md) describes `npm run test:production-restore`, which streams an approved read-only dump into disposable PostgreSQL and preserves the current deployment.
+
+The [final cutover and guarded rollback rehearsal](docs/cutover-rehearsal.md) exercises the reviewed Infra image manifest against an isolated production restore, without changing the deployment.

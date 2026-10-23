@@ -6,7 +6,12 @@ import { test } from 'node:test';
 import { parse } from 'yaml';
 import { validatePins, repositories } from './container-stack.mjs';
 import { replacePin } from './component-pins.mjs';
-import { validateBackupHost, productionDumpCommand, backupConfigArgument, validateRestoreArguments } from './production-backup.mjs';
+import {
+  validateBackupHost,
+  productionDumpCommand,
+  backupConfigArgument,
+  validateRestoreArguments,
+} from './production-backup.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const yaml = async (path) => parse(await readFile(resolve(root, path), 'utf8'));
@@ -16,6 +21,28 @@ const fakePins = Object.fromEntries(
     `ghcr.io/shmemcat/${image}@sha256:${'a'.repeat(64)}`,
   ])
 );
+
+test('frontend candidate releases publish only immutable web images', async () => {
+  for (const [game, image] of [
+    ['hearts', 'hearts-cards-web'],
+    ['euchre', 'euchre-web'],
+  ]) {
+    const path = `../${game}/.github/workflows/web-release.yml`;
+    if (!existsSync(resolve(root, path))) continue;
+    const workflow = await yaml(path);
+    assert.deepEqual(workflow.on.push.tags, ['web-v*']);
+    const serialized = JSON.stringify(workflow);
+    assert(!serialized.includes(':latest') && !serialized.includes('working-directory":"api'));
+    const builds = workflow.jobs.release.steps.filter((step) =>
+      step.uses?.startsWith('docker/build-push-action')
+    );
+    assert.equal(builds.length, 1);
+    assert.equal(builds[0].with.context, 'web');
+    assert(builds[0].with.tags.startsWith(`ghcr.io/shmemcat/${image}:`));
+    assert(workflow.jobs.release.steps.some((step) => step.run?.includes('--web check')));
+    assert(workflow.jobs.release.steps.some((step) => step.run?.includes('--web record')));
+  }
+});
 
 test('candidate promotion and rollback change only the selected digest', () => {
   validatePins(fakePins);
@@ -40,15 +67,36 @@ test('candidate promotion and rollback change only the selected digest', () => {
 
 test('production restore uses a read-only streamed dump and rejects SSH option injection', () => {
   assert.equal(validateBackupHost('cards-box'), 'cards-box');
-  for (const host of ['-oProxyCommand=anything', 'host;touch file', 'host name', 'user@host', '../host'])
+  for (const host of [
+    '-oProxyCommand=anything',
+    'host;touch file',
+    'host name',
+    'user@host',
+    '../host',
+  ])
     assert.throws(() => validateBackupHost(host));
   assert(productionDumpCommand.includes('default_transaction_read_only=on'));
-  assert(productionDumpCommand.endsWith('pg_dump --schema=hearts --format=custom --no-owner --no-acl shmemcity'));
+  assert(
+    productionDumpCommand.endsWith(
+      'pg_dump --schema=hearts --format=custom --no-owner --no-acl shmemcity'
+    )
+  );
   assert(!productionDumpCommand.includes('--file'));
-  assert.equal(backupConfigArgument(resolve(root, '.local/infra-ssh-config')), '.local/infra-ssh-config');
+  assert.equal(
+    backupConfigArgument(resolve(root, '.local/infra-ssh-config')),
+    '.local/infra-ssh-config'
+  );
   assert.throws(() => backupConfigArgument(resolve(root, '.local/config with spaces')));
-  assert.doesNotThrow(() => validateRestoreArguments(['--pins', 'reviewed.json', '--ssh-host', 'cards-box']));
-  for (const args of [['--help'], ['--config-only'], ['--pins'], ['--pins', '--ssh-host', 'cards-box'], ['--build', 'yes']])
+  assert.doesNotThrow(() =>
+    validateRestoreArguments(['--pins', 'reviewed.json', '--ssh-host', 'cards-box'])
+  );
+  for (const args of [
+    ['--help'],
+    ['--config-only'],
+    ['--pins'],
+    ['--pins', '--ssh-host', 'cards-box'],
+    ['--build', 'yes'],
+  ])
     assert.throws(() => validateRestoreArguments(args));
 });
 
@@ -110,7 +158,12 @@ test('gateway releases publish an immutable candidate without deploying or migra
   assert(steps.some((step) => step.run?.includes('--gateway record')));
   const config = JSON.parse(await readFile(resolve(root, 'release/gateway.json'), 'utf8'));
   const { releaseRecord, validateTag } = await import('./component-release.mjs');
-  const record = releaseRecord(config, 'gateway-v1.0.0', 'a'.repeat(40), 'sha256:' + 'b'.repeat(64));
+  const record = releaseRecord(
+    config,
+    'gateway-v1.0.0',
+    'a'.repeat(40),
+    'sha256:' + 'b'.repeat(64)
+  );
   assert.equal(record.schemaRevision, null);
   assert.deepEqual(record.migrationCommand, []);
   assert.throws(() => validateTag(config, 'v1.0.0'));

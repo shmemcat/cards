@@ -13,7 +13,7 @@ from sqlalchemy.engine import make_url
 url = make_url(os.environ["DATABASE_URL"])
 if (
     url.host != "db"
-    or url.database not in {"split_rehearsal", "split_legacy", "split_restored"}
+    or url.database not in {"split_rehearsal", "split_legacy", "split_restored", "shmemcity"}
     or url.username != "migrator"
 ):
     raise RuntimeError("Use only this rehearsal's private disposable database")

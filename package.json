@@ -23,6 +23,7 @@
     "test:images": "node scripts/rehearse-images.mjs",
     "test:postgres": "node scripts/rehearse-images.mjs --build --postgres",
     "test:production-restore": "node scripts/rehearse-production-restore.mjs",
+    "test:cutover": "node scripts/rehearse-cutover.mjs",
     "test:restore-audit": "uv run --project api --locked --extra dev python -m unittest discover -s scripts -p restore_audit_test.py"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 # Independent releases and isolated local integration
 
-This phase adds opt-in backend releases and rehearsals. Immutable candidate images are published separately from deployment activation. The existing `v*` workflows and Infra remain unchanged; the combined `hearts-api:latest` artifact keeps its current meaning. `npm run dev` still uses the existing combined local API.
+This phase adds opt-in backend releases and rehearsals. Immutable candidate images are published separately from deployment activation. The existing `v*` workflows and live deployment remain unchanged; the combined `hearts-api:latest` artifact keeps its current meaning. `npm run dev` still uses the existing combined local API.
 
 ## Release one backend
 
@@ -13,6 +13,10 @@ The registry digest is read from Docker's [JSON manifest output](https://docs.do
 Existing `v*` workflows remain the transition releases: Cards publishes its gateway, Hearts publishes the combined API and its web variants, and Euchre publishes its web app. Switching these defaults or retiring the combined release is a later reviewed cutover. Do not use `v*` as a shortcut for a new independent backend release.
 
 Cards also has a separate `gateway-vMAJOR.MINOR.PATCH` release for an immutable `cards-web` candidate. It publishes a gateway digest/source record without promoting `latest` or changing deployment pins. Use this when the split rehearsal needs newer proxy support while the live gateway must stay on its current release. It does not run a database migration.
+
+Hearts and Euchre also support frontend-only `web-vMAJOR.MINOR.PATCH` candidates through `web-release.yml`. These publish only `hearts-cards-web` or `euchre-web`, refuse existing image versions, and leave `latest` and all API images unchanged. The final activation uses Hearts `web-v1.0.1` and Euchre `web-v1.0.0`. Hearts' candidate selects `NGINX_CONFIG=nginx.cards.conf` to serve private static files without requiring the legacy API hostname; the Docker default retains `nginx.conf` for existing releases.
+
+The complete frontend/backend/rollback image set is reviewed in Infra's `activation-images.json`. Run the [final cutover and rollback rehearsal](cutover-rehearsal.md) against that manifest before selecting the explicit NixOS activation target. Normal host deployment remains combined.
 
 ## Native local stack
 

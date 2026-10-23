@@ -25,7 +25,7 @@ def engine_for_restore():
     url = make_url(os.environ["DATABASE_URL"])
     require(
         url.host == "db"
-        and url.database == "split_rehearsal"
+        and url.database in {"split_rehearsal", "shmemcity"}
         and url.username == "migrator"
         and url.query.get("options") == "-csearch_path=hearts",
         "Use only the private rehearsal database and hearts schema",

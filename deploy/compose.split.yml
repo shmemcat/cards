@@ -1,7 +1,7 @@
 # Opt-in isolated stack; never loaded by the existing deployment or npm run dev.
 name: ${SPLIT_PROJECT:?Use the split-stack runner}
 x-accounts-env: &accounts-env
-  DATABASE_URL: postgresql://accounts_runtime:split-accounts-local@db:5432/split_rehearsal${SPLIT_DATABASE_OPTIONS:-}
+  DATABASE_URL: postgresql://accounts_runtime:split-accounts-local@db:5432/${SPLIT_DATABASE_NAME:-split_rehearsal}${SPLIT_DATABASE_OPTIONS:-}
   CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
   CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
   FRONTEND_URL: ${SPLIT_PUBLIC_URL:?}
@@ -13,7 +13,7 @@ x-accounts-env: &accounts-env
   CARDS_GAME_SERVICES: >-
     {"hearts":{"url":"http://hearts:5001","token":"${SPLIT_HEARTS_CALLBACK:?}"},"euchre":{"url":"http://euchre:5002","token":"${SPLIT_EUCHRE_CALLBACK:?}"}}
 x-hearts-env: &hearts-env
-  DATABASE_URL: postgresql://hearts_runtime:split-hearts-local@db:5432/split_rehearsal${SPLIT_DATABASE_OPTIONS:-}
+  DATABASE_URL: postgresql://hearts_runtime:split-hearts-local@db:5432/${SPLIT_DATABASE_NAME:-split_rehearsal}${SPLIT_DATABASE_OPTIONS:-}
   CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
   CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
   CARDS_ACCOUNTS_URL: http://accounts:5001
@@ -21,7 +21,7 @@ x-hearts-env: &hearts-env
   CARDS_SERVICE_TOKEN: ${SPLIT_HEARTS_READ:?}
   CARDS_GAME_ACCOUNT_TOKENS: '{"hearts":"${SPLIT_HEARTS_CALLBACK:?}"}'
 x-euchre-env: &euchre-env
-  DATABASE_URL: postgresql://euchre_runtime:split-euchre-local@db:5432/split_rehearsal${SPLIT_DATABASE_OPTIONS:-}
+  DATABASE_URL: postgresql://euchre_runtime:split-euchre-local@db:5432/${SPLIT_DATABASE_NAME:-split_rehearsal}${SPLIT_DATABASE_OPTIONS:-}
   CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
   CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
   CARDS_ACCOUNTS_URL: http://accounts:5001
@@ -34,11 +34,11 @@ services:
     environment:
       POSTGRES_USER: migrator
       POSTGRES_PASSWORD: split-migration-local
-      POSTGRES_DB: split_rehearsal
+      POSTGRES_DB: ${SPLIT_DATABASE_NAME:-split_rehearsal}
     tmpfs: [/var/lib/postgresql]
     volumes: [./split/roles.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro]
     healthcheck:
-      test: [CMD-SHELL, "pg_isready -U migrator -d split_rehearsal"]
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U migrator -d ${SPLIT_DATABASE_NAME:-split_rehearsal}"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -46,7 +46,7 @@ services:
     image: ${ACCOUNTS_IMAGE:?}
     environment:
       <<: *accounts-env
-      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/split_rehearsal${SPLIT_DATABASE_OPTIONS:-}
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/${SPLIT_DATABASE_NAME:-split_rehearsal}${SPLIT_DATABASE_OPTIONS:-}
     command: [python, -m, cards_accounts.schema, upgrade]
     depends_on:
       db: {condition: service_healthy}
@@ -54,7 +54,7 @@ services:
     image: ${HEARTS_IMAGE:?}
     environment:
       <<: *hearts-env
-      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/split_rehearsal${SPLIT_DATABASE_OPTIONS:-}
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/${SPLIT_DATABASE_NAME:-split_rehearsal}${SPLIT_DATABASE_OPTIONS:-}
     command: [python, -m, hearts_server.schema, upgrade]
     depends_on:
       accounts-migrate: {condition: service_completed_successfully}
@@ -62,7 +62,7 @@ services:
     image: ${EUCHRE_IMAGE:?}
     environment:
       <<: *euchre-env
-      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/split_rehearsal${SPLIT_DATABASE_OPTIONS:-}
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/${SPLIT_DATABASE_NAME:-split_rehearsal}${SPLIT_DATABASE_OPTIONS:-}
     command: [python, -m, euchre_server.schema, upgrade]
     depends_on:
       hearts-migrate: {condition: service_completed_successfully}
@@ -72,7 +72,7 @@ services:
       PGPASSWORD: split-migration-local
       PGOPTIONS: ${SPLIT_PGOPTIONS:-}
     volumes: [./split/grants.sql:/grants.sql:ro]
-    command: [psql, -h, db, -U, migrator, -d, split_rehearsal, -f, /grants.sql]
+    command: [psql, -h, db, -U, migrator, -d, "${SPLIT_DATABASE_NAME:-split_rehearsal}", -f, /grants.sql]
     depends_on:
       euchre-migrate: {condition: service_completed_successfully}
   accounts:
