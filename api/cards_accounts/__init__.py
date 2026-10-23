@@ -1,0 +1,1 @@
+from cards_accounts.application import create_app

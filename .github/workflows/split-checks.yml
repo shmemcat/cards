@@ -1,0 +1,27 @@
+name: Check split release and integration definitions
+
+on:
+  pull_request:
+    paths: ["scripts/**", "release/**", "deploy/**", "package*.json", ".github/workflows/**"]
+  push:
+    paths: ["scripts/**", "release/**", "deploy/**", "package*.json", ".github/workflows/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run test:release
+      - name: Render the isolated stack without starting containers
+        run: npm run test:images -- --build --config-only

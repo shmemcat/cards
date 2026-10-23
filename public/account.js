@@ -71,7 +71,7 @@ function showDeleteDialog() {
         paintAccount(session);
         view = 'login';
         render();
-        notice('Account deleted.');
+        notice(session.message || 'Account deleted.');
       } catch (error) { dialog.querySelector('#delete-status').textContent = error.message; }
       finally { busy = false; controls.forEach(control => { control.disabled = false; }); dialog.setAttribute('aria-busy', 'false'); }
     });

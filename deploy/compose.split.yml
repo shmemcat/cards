@@ -1,0 +1,100 @@
+# Opt-in isolated stack; never loaded by the existing deployment or npm run dev.
+name: ${SPLIT_PROJECT:?Use the split-stack runner}
+x-accounts-env: &accounts-env
+  DATABASE_URL: postgresql://accounts_runtime:split-accounts-local@db:5432/split_rehearsal
+  CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
+  CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
+  FRONTEND_URL: ${SPLIT_PUBLIC_URL:?}
+  JWT_SECRET: ${SPLIT_JWT_SECRET:?}
+  CARDS_EMAIL_TRANSPORT: file
+  CARDS_EMAIL_OUTBOX: /outbox
+  CARDS_INTERNAL_CLIENTS: >-
+    {"hearts-game":{"token":"${SPLIT_HEARTS_READ:?}","scopes":["sessions.validate","profiles.read"]},"euchre-game":{"token":"${SPLIT_EUCHRE_READ:?}","scopes":["sessions.validate","profiles.read"]}}
+  CARDS_GAME_SERVICES: >-
+    {"hearts":{"url":"http://hearts:5001","token":"${SPLIT_HEARTS_CALLBACK:?}"},"euchre":{"url":"http://euchre:5002","token":"${SPLIT_EUCHRE_CALLBACK:?}"}}
+x-hearts-env: &hearts-env
+  DATABASE_URL: postgresql://hearts_runtime:split-hearts-local@db:5432/split_rehearsal
+  CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
+  CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
+  CARDS_ACCOUNTS_URL: http://accounts:5001
+  CARDS_SERVICE_ID: hearts-game
+  CARDS_SERVICE_TOKEN: ${SPLIT_HEARTS_READ:?}
+  CARDS_GAME_ACCOUNT_TOKENS: '{"hearts":"${SPLIT_HEARTS_CALLBACK:?}"}'
+x-euchre-env: &euchre-env
+  DATABASE_URL: postgresql://euchre_runtime:split-euchre-local@db:5432/split_rehearsal
+  CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
+  CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
+  CARDS_ACCOUNTS_URL: http://accounts:5001
+  CARDS_SERVICE_ID: euchre-game
+  CARDS_SERVICE_TOKEN: ${SPLIT_EUCHRE_READ:?}
+  CARDS_GAME_ACCOUNT_TOKENS: '{"euchre":"${SPLIT_EUCHRE_CALLBACK:?}"}'
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: migrator
+      POSTGRES_PASSWORD: split-migration-local
+      POSTGRES_DB: split_rehearsal
+    tmpfs: [/var/lib/postgresql]
+    volumes: [./split/roles.sql:/docker-entrypoint-initdb.d/01-roles.sql:ro]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U migrator -d split_rehearsal"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  accounts-migrate:
+    image: ${ACCOUNTS_IMAGE:?}
+    environment:
+      <<: *accounts-env
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/split_rehearsal
+    command: [python, -m, cards_accounts.schema, upgrade]
+    depends_on:
+      db: {condition: service_healthy}
+  hearts-migrate:
+    image: ${HEARTS_IMAGE:?}
+    environment:
+      <<: *hearts-env
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/split_rehearsal
+    command: [python, -m, hearts_server.schema, upgrade]
+    depends_on:
+      accounts-migrate: {condition: service_completed_successfully}
+  euchre-migrate:
+    image: ${EUCHRE_IMAGE:?}
+    environment:
+      <<: *euchre-env
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/split_rehearsal
+    command: [python, -m, euchre_server.schema, upgrade]
+    depends_on:
+      hearts-migrate: {condition: service_completed_successfully}
+  grants:
+    image: postgres:18-alpine
+    environment:
+      PGPASSWORD: split-migration-local
+    volumes: [./split/grants.sql:/grants.sql:ro]
+    command: [psql, -h, db, -U, migrator, -d, split_rehearsal, -f, /grants.sql]
+    depends_on:
+      euchre-migrate: {condition: service_completed_successfully}
+  accounts:
+    image: ${ACCOUNTS_IMAGE:?}
+    environment: *accounts-env
+    volumes: ["${SPLIT_OUTBOX:?}:/outbox"]
+    depends_on:
+      grants: {condition: service_completed_successfully}
+  hearts:
+    image: ${HEARTS_IMAGE:?}
+    environment: *hearts-env
+    depends_on:
+      grants: {condition: service_completed_successfully}
+  euchre:
+    image: ${EUCHRE_IMAGE:?}
+    environment: *euchre-env
+    depends_on:
+      grants: {condition: service_completed_successfully}
+  gateway:
+    image: ${GATEWAY_IMAGE:?}
+    volumes: [./split/proxy.conf:/etc/nginx/cards-proxy.conf:ro]
+    ports: ["127.0.0.1:${SPLIT_PORT:?}:8080"]
+    depends_on:
+      accounts: {condition: service_healthy}
+      hearts: {condition: service_healthy}
+      euchre: {condition: service_healthy}

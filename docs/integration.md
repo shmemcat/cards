@@ -1,5 +1,9 @@
 # Shared Cards accounts and hosting
 
+The staged server separation now has local [game routing compatibility changes](game-routing-compatibility.md).
+Release those gateway aliases before releasing clients using the new paths.
+Both games continue to use the existing combined API until their later cutovers.
+
 ## Implemented locally
 
 The shared account service lives in the existing Hearts Flask API. It reads the

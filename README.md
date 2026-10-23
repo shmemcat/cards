@@ -32,8 +32,10 @@ source changes. Restart an API launched before auto-reloading was enabled once
 to pick up the current routes. `npm run dev:hub` runs only the hub and
 `npm run dev:accounts` runs only the account API when separate terminals are useful.
 
-The server proxies `/api/` to `http://127.0.0.1:5000/`. Set `CARDS_API_TARGET` for
-a different API. Game links temporarily redirect to local games; override with
+The server proxies `/api/` and the legacy/new socket paths to
+`http://127.0.0.1:5000/`. Game calls use `/api/hearts/` or `/api/euchre/`;
+accounts keep `/api/account/`. Set `CARDS_API_TARGET` for a different combined API.
+Game links temporarily redirect to local games; override with
 `HEARTS_LOCAL_URL` and `EUCHRE_LOCAL_URL` if needed. When using Hearts' Docker API
 instead of `dev:accounts`, migrate its database and set
 `CARDS_API_TARGET=http://127.0.0.1:5001/`. Use one account API for all sites.
@@ -81,6 +83,11 @@ static host needs its own API routing. The production gateway in `deploy/` serve
 games at `/hearts/` and `/euchre/`, and handles old subdomain redirects. It is separate from this local development server.
 Account tests live in `../hearts/api/tests/test_shared_accounts.py`.
 
+`npm run test:routing` checks real HTTP/Socket.IO traffic through the gateway
+rules and development proxies using a disposable backend. It requires local
+Nginx (`NGINX_BIN` if not on PATH) and the sibling projects' dependencies.
+See [routing compatibility and release order](docs/game-routing-compatibility.md).
+
 ## Production
 
 The intended home is **https://cards.shmem.dev/**, with both games and one login
@@ -115,3 +122,9 @@ node scripts/check-deployment.mjs http://localhost:3096
 Logos and fonts are reused from Hearts and Euchre. License notices are in
 `public/assets/`. The navbar uses the games' three licensed Font Awesome Pro
 icons as bundled SVGs. No package-install token is needed for the hub.
+
+The independently packaged [Cards accounts API](api/README.md) and [activation runbook](docs/accounts-service.md) are prepared locally; production routing and the default combined backend remain unchanged.
+
+The [Hearts game server](../hearts/game-api/README.md) and [Euchre game server](../euchre/api/README.md) are also independently packaged. With their environments installed, `npm run test:hearts-server` (alias `test:euchre-server`) runs a disposable three-service rehearsal covering shared accounts, full games, recovery, deletion retry, and restarts that leave the other game connected. These commands do not change the default development or deployment destinations.
+
+Use `npm run dev:split` for the opt-in local stack with all three separate backends and both web apps. Backend releases use separate component tags and digest records, while existing `v*` workflows retain their current behavior. See [component releases and local integration](docs/component-releases.md) for setup, tests, pinned-image CI, and promotion/rollback manifests.

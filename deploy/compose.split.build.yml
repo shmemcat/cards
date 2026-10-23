@@ -1,0 +1,12 @@
+# Local-source overlay. Pinned-image CI does not load this file or build siblings.
+services:
+  accounts:
+    build: ../api
+  hearts:
+    build: ../../hearts/game-api
+  euchre:
+    build: ../../euchre/api
+  gateway:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile

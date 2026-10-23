@@ -1,0 +1,539 @@
+from cards_accounts.deletions import is_deleting
+import re
+import os
+import jwt
+import secrets
+from flask import Blueprint, request, jsonify, g, current_app
+from datetime import datetime, timedelta
+
+from cards_accounts.extensions import db, limiter
+from cards_accounts.models import (
+    User,
+    PasswordResetToken,
+)
+from cards_accounts.auth_utils import hash_password, verify_password
+from cards_accounts.email_utils import (
+    send_verification_email,
+    send_password_reset_email,
+    hash_token,
+)
+from cards_accounts.jwt_utils import get_current_user, require_jwt
+
+auth_bp = Blueprint("auth", __name__)
+
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,64}$")
+MIN_PASSWORD_LEN = 8
+AUTH_LIMIT = "5 per minute"
+EMAIL_LIMIT = "3 per minute;5 per hour"
+
+
+def _validate_email(email: str) -> bool:
+    return bool(email and EMAIL_RE.match(email.strip()))
+
+
+def _validate_username(username: str) -> tuple[bool, str]:
+    username = (username or "").strip()
+    if not username:
+        return False, "Username required"
+    if not USERNAME_RE.match(username):
+        return (
+            False,
+            "Username must be 3â€“64 characters, letters, numbers, and underscores only",
+        )
+    return True, ""
+
+
+def _validate_password(password: str) -> tuple[bool, str]:
+    if not password or len(password) < MIN_PASSWORD_LEN:
+        return False, f"Password must be at least {MIN_PASSWORD_LEN} characters"
+    return True, ""
+
+
+@auth_bp.route("/register", methods=["POST"])
+@limiter.limit("5 per minute;10 per hour")
+def register():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+
+    ok, msg = _validate_username(username)
+    if not ok:
+        return jsonify({"error": msg}), 400
+    if not _validate_email(email):
+        return jsonify({"error": "Invalid email"}), 400
+    ok, msg = _validate_password(password)
+    if not ok:
+        return jsonify({"error": msg}), 400
+
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Username already taken"}), 409
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already registered"}), 409
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=hash_password(password),
+        email_verified=False,
+    )
+    verification_token = user.set_verification_token()
+    db.session.add(user)
+    db.session.commit()
+
+    send_verification_email(email, verification_token)
+
+    return (
+        jsonify(
+            {
+                "user": user.to_dict(),
+                "message": "Account created. Check your email to verify your account.",
+            }
+        ),
+        201,
+    )
+
+
+@auth_bp.route("/login", methods=["POST"])
+@limiter.limit(AUTH_LIMIT)
+def login():
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    if not username or not password:
+        return jsonify({"error": "Username or email and password required"}), 401
+
+    try:
+        user = User.query.filter_by(username=username).first()
+        if user is None and _validate_email(username):
+            user = User.query.filter_by(email=username.lower()).first()
+    except Exception:
+        return (
+            jsonify({"error": "Unable to reach the server. Please try again later."}),
+            503,
+        )
+
+    if not user or not verify_password(password, user.password_hash):
+        return jsonify({"error": "Invalid username, email, or password"}), 401
+    from cards_accounts.deletions import is_deleting
+
+    if is_deleting(user.id):
+        return (
+            jsonify(error="Account deletion is processing.", code="DELETION_PENDING"),
+            403,
+        )
+
+    if not user.email_verified:
+        return (
+            jsonify(
+                {
+                    "error": "Please verify your email before signing in.",
+                    "code": "EMAIL_NOT_VERIFIED",
+                }
+            ),
+            403,
+        )
+
+    secret = current_app.config.get("JWT_SECRET")
+    payload = {
+        "sub": str(user.id),
+        "av": user.auth_version,
+        "username": user.username,
+        "email": user.email,
+        "exp": datetime.utcnow() + timedelta(days=7),
+    }
+    token = jwt.encode(payload, secret, algorithm="HS256") if secret else None
+
+    return (
+        jsonify(
+            {
+                "user": user.to_dict(),
+                "token": token,
+            }
+        ),
+        200,
+    )
+
+
+@auth_bp.route("/verify-email", methods=["POST"])
+@limiter.limit(AUTH_LIMIT)
+def verify_email():
+    data = request.get_json() or {}
+    token = (data.get("token") or "").strip()
+    if not token:
+        return jsonify({"error": "Token required"}), 400
+
+    user = (
+        User.query.filter(User.verification_token.in_([hash_token(token), token]))
+        .with_for_update(of=User)
+        .first()
+    )
+    if not user:
+        return jsonify({"error": "Invalid or expired link"}), 400
+    if user.verification_expires and user.verification_expires < datetime.utcnow():
+        return jsonify({"error": "Verification link expired"}), 400
+
+    user.email_verified = True
+    user.verification_token = None
+    user.verification_expires = None
+    db.session.commit()
+    return jsonify({"message": "Email verified", "user": user.to_dict()}), 200
+
+
+@auth_bp.route("/forgot-password", methods=["POST"])
+@limiter.limit(EMAIL_LIMIT)
+def forgot_password():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not _validate_email(email):
+        return jsonify({"error": "Valid email required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if user and not is_deleting(user.id):
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hash_token(raw_token)
+        reset = PasswordResetToken(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=datetime.utcnow() + timedelta(hours=1),
+        )
+        db.session.add(reset)
+        db.session.commit()
+        send_password_reset_email(user.email, raw_token)
+
+    return (
+        jsonify({"message": "If that email is registered, we sent a reset link."}),
+        200,
+    )
+
+
+@auth_bp.route("/reset-password", methods=["POST"])
+@limiter.limit(AUTH_LIMIT)
+def reset_password():
+    data = request.get_json() or {}
+    token = (data.get("token") or "").strip()
+    new_password = data.get("password") or ""
+
+    if not token:
+        return jsonify({"error": "Token required"}), 400
+    ok, msg = _validate_password(new_password)
+    if not ok:
+        return jsonify({"error": msg}), 400
+
+    from cards_accounts.account_security import reset_password_with_token
+
+    if not reset_password_with_token(token, new_password):
+        return jsonify({"error": "Invalid or expired reset link"}), 400
+    return jsonify({"message": "Password updated"}), 200
+
+
+@auth_bp.route("/resend-verification", methods=["POST"])
+@limiter.limit(EMAIL_LIMIT)
+def resend_verification():
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    if not _validate_email(email):
+        return jsonify({"error": "Valid email required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if user and not user.email_verified and not is_deleting(user.id):
+        verification_token = user.set_verification_token()
+        db.session.commit()
+        send_verification_email(user.email, verification_token)
+
+    return (
+        jsonify(
+            {
+                "message": "If that email is registered and unverified, we sent a new verification link."
+            }
+        ),
+        200,
+    )
+
+
+VALID_PROFILE_ICONS = {
+    "user",
+    # Animals
+    "alicorn",
+    "badger-honey",
+    "bat",
+    "bee",
+    "bird",
+    "bugs",
+    "butterfly",
+    "cat",
+    "crab",
+    "crow",
+    "deer",
+    "dinosaur",
+    "dog",
+    "dolphin",
+    "dove",
+    "dragon",
+    "duck",
+    "elephant",
+    "feather",
+    "fish",
+    "frog",
+    "hippo",
+    "horse",
+    "kiwi-bird",
+    "lobster",
+    "monkey",
+    "narwhal",
+    "otter",
+    "owl",
+    "paw-simple",
+    "pig",
+    "rabbit",
+    "ram",
+    "seal",
+    "sheep",
+    "shrimp",
+    "snake",
+    "spider",
+    "squirrel",
+    "turtle",
+    "unicorn",
+    "whale",
+    "worm",
+    # Card Game
+    "cards",
+    "club",
+    "diamond",
+    "spade",
+    "heart",
+    "dice",
+    "crown",
+    "chess-queen",
+    "chess-rook",
+    "chess-bishop",
+    # Space & Weather
+    "moon",
+    "moon-stars",
+    "sun-bright",
+    "star",
+    "meteor",
+    "cloud-bolt",
+    "snowflake",
+    "rainbow",
+    "rocket",
+    "comet",
+    # Nature
+    "leaf",
+    "seedling",
+    "tree",
+    "clover",
+    "flower-tulip",
+    "mountain-sun",
+    "cactus",
+    "mushroom",
+    "tree-palm",
+    "flower-daffodil",
+    # Food & Drink
+    "mug-hot",
+    "pizza-slice",
+    "cookie",
+    "ice-cream",
+    "candy-cane",
+    "lemon",
+    "apple-whole",
+    "pepper-hot",
+    "martini-glass-citrus",
+    "wine-glass",
+    "ramen",
+    "burger",
+    "cheese",
+    "cherries",
+    "croissant",
+    "cupcake",
+    "egg",
+    "grapes",
+    "hotdog",
+    "popcorn",
+    "taco",
+    "avocado",
+    "bacon",
+    "bagel",
+    "baguette",
+    "banana",
+    "beer",
+    "bread",
+    "broccoli",
+    "carrot",
+    "chocolate",
+    "coffee",
+    "donut",
+    "eggplant",
+    "honey",
+    "olive",
+    "onion",
+    "pancakes",
+    "peanut",
+    "pie",
+    "potato",
+    # Music & Art
+    "music",
+    "guitar",
+    "drum",
+    "palette",
+    "paintbrush-fine",
+    "headphones",
+    "microphone-stand",
+    "record-vinyl",
+    "radio",
+    "piano",
+    # Fun Objects
+    "hat-wizard",
+    "wand-magic-sparkles",
+    "gem",
+    "fire",
+    "bolt",
+    "shield",
+    "skull-crossbones",
+    "binoculars",
+    "compass",
+    "anchor",
+    "bomb",
+    "swords",
+    "axe-battle",
+    "key",
+    "dagger",
+    "hourglass",
+    "scroll",
+    "ring",
+    "flask",
+    "telescope",
+    # Cute
+    "face-smile",
+    "face-sunglasses",
+    "face-cowboy-hat",
+    "face-party",
+    "cake-candles",
+    "gift",
+    "balloon",
+    "sparkles",
+    "face-laugh-beam",
+    "treasure-chest",
+    # Sports
+    "futbol",
+    "basketball",
+    "bicycle",
+    "person-skiing",
+    "volleyball",
+    "baseball-bat-ball",
+    "tennis-ball",
+    "table-tennis-paddle-ball",
+    "person-swimming",
+    "person-running",
+    # Coding
+    "code",
+    "terminal",
+    "laptop-code",
+    "bug",
+    "microchip",
+    "binary",
+    "database",
+    "keyboard",
+    "server",
+    "brackets-curly",
+    # Gaming
+    "gamepad",
+    "gamepad-modern",
+    "chess-pawn",
+    "chess-knight",
+    "dice-d20",
+    "sword-laser",
+    "ufo",
+    "joystick",
+    "puzzle-piece",
+    "bowling-ball",
+    # Holiday
+    "ghost",
+    "jack-o-lantern",
+    "candy-cane",
+    "snowman",
+    "gifts",
+    "hat-santa",
+    "cauldron",
+    "bat",
+    "gingerbread-man",
+    "stocking",
+    # Symbols
+    "yin-yang",
+    "peace",
+    "infinity",
+    "eye",
+    "hand-spock",
+    "alien-8bit",
+    "user-astronaut",
+    "user-ninja",
+    "atom",
+    "om",
+}
+
+
+@auth_bp.route("/profile", methods=["PATCH"])
+@require_jwt
+@limiter.limit("30 per minute")
+def update_profile():
+    data = request.get_json() or {}
+    user = db.session.get(User, g.current_user.id)
+    changed = False
+
+    if "profile_icon" in data:
+        icon = (data["profile_icon"] or "").strip()
+        if icon not in VALID_PROFILE_ICONS:
+            return jsonify({"error": f"Invalid profile icon: {icon}"}), 400
+        user.profile_icon = icon
+        changed = True
+
+    email_changed = False
+    if "email" in data:
+        new_email = (data["email"] or "").strip().lower()
+        if not _validate_email(new_email):
+            return jsonify({"error": "Invalid email"}), 400
+        if new_email != user.email:
+            existing = User.query.filter_by(email=new_email).first()
+            if existing and existing.id != user.id:
+                return jsonify({"error": "Email already registered"}), 409
+            from cards_accounts.account_security import change_email
+
+            verification_token = change_email(user, new_email)
+            email_changed = True
+            changed = True
+
+    if not changed:
+        return jsonify({"error": "No changes provided"}), 400
+
+    db.session.commit()
+
+    if email_changed:
+        send_verification_email(user.email, verification_token)
+
+    return jsonify({"user": user.to_dict()}), 200
+
+
+@auth_bp.route("/me", methods=["GET"])
+@require_jwt
+def me():
+    return jsonify({"user": db.session.get(User, g.current_user.id).to_dict()}), 200
+
+
+@auth_bp.route("/account", methods=["DELETE"])
+@require_jwt
+@limiter.limit("3 per minute")
+def delete_account():
+    data = request.get_json() or {}
+    password = data.get("password") or ""
+    return delete_user_account(g.current_user, password)
+
+
+def delete_user_account(user, password):
+    from cards_accounts.deletions import delete_account
+
+    result = delete_account(user.id, password)
+    key = "message" if result.deleted or result.status_code == 202 else "error"
+    return jsonify({key: result.message}), result.status_code
