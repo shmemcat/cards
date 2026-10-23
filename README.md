@@ -1,117 +1,92 @@
 # Cards
 
-The home for shmemcat's Hearts and Euchre sites. Each game link keeps its own
-logo, font, palette, and glossy button. Both light and dark themes are supported.
+The home for Hearts and Euchre, with shared accounts and separate game servers.
+Production runs at **https://cards.shmem.dev/**.
 
 ## Run locally
 
-Requires Node.js 22.12+. The hub has no npm dependencies. Keep the `cards`,
-`hearts`, and `euchre` repositories beside each other.
+Keep the `cards`, `hearts`, and `euchre` repositories beside each other. Install
+Node.js 22.12+, Python 3.11 and uv. From Cards, install the integration dependencies
+and the three backend environments:
 
-Start the hub and shared account API together:
+```powershell
+npm ci --ignore-scripts
+uv sync --project api --locked --extra dev
+uv sync --project ../hearts/game-api --locked --extra dev
+uv sync --project ../euchre/api --locked --extra dev
+```
+
+Install each game's frontend dependencies using `npm run web:install` in that
+game's repository. Its root `.env` supplies the Font Awesome package token for
+installation. Keep tokens out of Git.
 
 ```powershell
 npm run dev
 ```
 
-The API uses the Hearts API's Python environment at
-`../hearts/api/.venv/Scripts/python.exe` (or `.venv/bin/python` on Unix).
-Install Hearts API dependencies first if that environment does not exist.
-`HEARTS_API_PATH` and `HEARTS_PYTHON` can override those paths.
-The runner creates **Cards/.local/accounts.sqlite** for development. It does not
-load a live database or copy users from another machine.
+This is the default split stack: the hub on port 3000, Hearts and Euchre web apps
+on 3001/3002, and accounts/Hearts/Euchre backends on 5100/5101/5102. The game
+repositories' root `npm run dev` delegates to this same runner. Run it once and
+open **http://localhost:3000/**. `npm run dev:split` remains an alias in Cards.
 
-Open **http://localhost:3000/**. Start Hearts and Euchre frontends separately
-on ports **3001** and **3002**. Use `localhost` for all three: cookies are shared
-between its ports, while saves and theme storage remain specific to each port.
-The hub redirects `127.0.0.1` to `localhost` in development.
-The account API starts automatically and is ready before the hub starts. If a
-shared account API is already running, the hub reuses it. Stopping the command
-also stops the services it started. The local account API reloads when its Python
-source changes. Restart an API launched before auto-reloading was enabled once
-to pick up the current routes. `npm run dev:hub` runs only the hub and
-`npm run dev:accounts` runs only the account API when separate terminals are useful.
+The runner uses only **cards/.local/split-dev/** for its SQLite database, stable
+local keys and mail outbox. It refuses occupied ports and inherited database or
+service settings. It never adopts `.local/accounts.sqlite` or Hearts' instance
+database. Existing local users and saves remain in their original databases;
+there is no automatic import into the split stack. Only this isolated stack's
+migrations run during local startup. Ctrl+C stops the processes it launched.
 
-The server proxies `/api/` to `http://127.0.0.1:5000/`. Set `CARDS_API_TARGET` for
-a different API. Game links temporarily redirect to local games; override with
-`HEARTS_LOCAL_URL` and `EUCHRE_LOCAL_URL` if needed. When using Hearts' Docker API
-instead of `dev:accounts`, migrate its database and set
-`CARDS_API_TARGET=http://127.0.0.1:5001/`. Use one account API for all sites.
+`npm run dev:combined` retains the previous hub/combined-API runner for explicit
+compatibility work. Cards' `dev:hub` and `dev:accounts` are also legacy helpers.
+The game repositories' `dev:web` commands retain frontend-only previews with
+separately configured backend destinations. Stop any preview using the same ports
+before starting the full stack. See [component releases](docs/component-releases.md).
 
 ## Accounts and recovery
 
-`/user/` offers sign-in, registration, email verification, password recovery, and
-logout. Both games recognize the same session. Authentication uses an HttpOnly
-cookie; no login tokens are stored in browser storage or passed in game links.
-
-The local runner defaults to an email sandbox at **.local/outbox/**, including
-when a provider key is present. It can reuse only `SMTP2GO_API_KEY` and
-`SMTP2GO_FROM_EMAIL` from Hearts' root `.env` when explicitly enabled. The current
-local workflow keeps the sandbox until deployment:
-
-```powershell
-$env:CARDS_EMAIL_TRANSPORT='file'
-npm run dev:accounts
-```
-
-Open **http://localhost:3000/__dev/mail/** for local verification and recovery
-emails, then follow the matching link. Refresh the inbox after requesting a new
-email. This inbox is available only in development over a loopback connection;
-the production and built-preview server do not expose it.
-The `url` in each generated JSON email also works directly.
-These files contain private temporary links and stay ignored by Git. File delivery
-is prohibited on public hosts. Set `CARDS_EMAIL_TRANSPORT=smtp2go` explicitly and
-restart to opt into real local email delivery with a configured key.
-Provider delivery uses a bounded background queue; errors are logged by the API
-and users can request another link.
-
-Live Hearts accounts are preserved by deploying the API against the **existing
-live Hearts database**, then applying migrations **017–018**. The local database is
-separate. See [deployment and migration notes](docs/integration.md).
+All three local sites share the account service and cookie session. Open
+**http://localhost:3000/__dev/mail/** for file-only verification/recovery mail.
+Links and local keys stay ignored by Git. The split runner does not send provider
+mail or read production credentials. Production accounts and game data stay in
+the existing PostgreSQL database; local setup does not migrate live data.
 
 ## Build and checks
 
 ```powershell
 npm run build
 npm run preview
+npm run test:release
+npm run test:split
 ```
 
-`dist/` contains static files. The Node preview also proxies `/api/`; another
-static host needs its own API routing. The production gateway in `deploy/` serves the hub, proxies independently built
-games at `/hearts/` and `/euchre/`, and handles old subdomain redirects. It is separate from this local development server.
-Account tests live in `../hearts/api/tests/test_shared_accounts.py`.
+The disposable split rehearsal covers shared login, both frontend proxies,
+game recovery, account deletion and independent service restarts. It checks
+that the pre-existing developer databases are unchanged. Native Nginx routing
+also runs when `NGINX_BIN` is configured. `test:images`, `test:postgres`,
+`test:production-restore` and `test:cutover` are explicit container rehearsals;
+their setup and isolation rules are documented in `docs/`.
 
-## Production
+## Releases and production
 
-The intended home is **https://cards.shmem.dev/**, with both games and one login
-on the same origin. Push a version tag such as `v1.2.3` in the relevant repo:
-Cards publishes `cards-web`, Euchre publishes `euchre-web`, and Hearts publishes
-`hearts-api`, `hearts-web`, and `hearts-cards-web` to GHCR. Successful workflows
-publish versioned images and promote `latest`. Each game builds its own code;
-no cross-repository access token is needed. Hearts and Euchre each need the
-`FONTAWESOME_PACKAGE_TOKEN` Actions secret. The hub needs no package token.
+Accounts uses `accounts-vMAJOR.MINOR.PATCH`, the gateway uses `gateway-v*`, and
+the game repositories use `game-v*` and frontend-only `web-v*`. These publish
+independent immutable candidates with source/digest records. They do not deploy.
 
-After the first reviewed cutover, Podman's existing updater checks every minute
-and restarts changed containers. Health checks gate startup and allow rollback
-on failed starts. These are rolling updates; keep API changes backward compatible
-with the previous frontend. The first account migration still requires the
-backup and verification sequence below before publishing a Hearts release.
+The retained legacy `release.yml` is manual-only: select an existing `v*` tag and
+explicitly acknowledge legacy publishing. It refuses existing image versions
+and does not update `latest`. See [legacy publishing](docs/legacy-releases.md).
 
-The actual host uses NixOS, Podman, and the existing PostgreSQL `shmemcity`
-database's `hearts` schema. Infrastructure changes live in the sibling `infra`
-checkout, whose authoritative origin is Forgejo. Follow the
-[deployment runbook](docs/integration.md) before enabling the release or redirects.
-Never deploy `scripts/account-dev.py` or `.local/accounts.sqlite` to production.
-
-For an isolated local rehearsal, `deploy/compose.verify.yml` provides RAM-backed
-PostgreSQL and file-only email. Against a running gateway, use:
-
-```powershell
-node scripts/check-deployment.mjs http://localhost:3096
-```
+Production uses the reviewed Infra `nuttybox` split configuration with immutable
+pins, separate runtime database roles, and a guarded combined rollback target.
+Cards containers do not opt into moving-tag auto-updates. These review changes
+do not change Infra, publish images, retire rollback artifacts, or deploy code.
+The [production cutover receipt](release/deployments/split-2026-10-22/README.md)
+records the original ownership handoff. Current operator procedures live in
+the sibling Infra repository's `docs/cards-split-default.md` and
+`docs/cards-operations.md`.
 
 ## Assets
 
 Logos and fonts are reused from Hearts and Euchre. License notices are in
-`public/assets/`. The navbar uses the games' three licensed Font Awesome Pro
-icons as bundled SVGs. No package-install token is needed for the hub.
+`public/assets/`. The navbar uses the games' licensed Font Awesome icons as
+bundled SVGs. No package-install token is needed for the hub.

@@ -4,6 +4,8 @@
 !deploy/
 !deploy/nginx.conf
 !deploy/proxy.conf
+!deploy/api-proxy.conf
+!deploy/socket-proxy.conf
 **/node_modules
 **/.git
 **/.env

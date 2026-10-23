@@ -1,0 +1,7 @@
+{
+  "cards-web": "sha256:b236be87e310f7c7183b39170e568ab386fac342f65ad63d5d10e14bda22930b",
+  "hearts-cards-web": "sha256:b1384fbfd2838529c9aa80ea504d3bce0f665a1698826f504d5e88e4df092862",
+  "euchre-web": "sha256:e235d97b6fbe5e6db01c2a78ff07c97ecee7534c7b2c045bbd4be64b2f16ac7b",
+  "hearts-api": "sha256:0286dbe575e61426c9660979a86ed6df1c98aeab6480ef0f085dc2c668d0f90e",
+  "hearts-web": "sha256:e3e6fcfe1bf728b89906c8e567a100ce6040f2388ac94170d357cb28013ea245"
+}

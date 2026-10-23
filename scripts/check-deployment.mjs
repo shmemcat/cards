@@ -48,13 +48,19 @@ for (const [path, host, destination] of [
   assert.equal(response.headers.get('location'), destination, path);
 }
 assert.equal((await get('/api/health')).status, 200);
+assert.equal((await get('/api/hearts/health')).status, 200);
 // A dropped query would use the default valid category and incorrectly return 200.
 assert.equal((await get('/api/account/euchre/leaderboard?category=smoke-invalid')).status, 400);
+assert.equal((await get('/api/euchre/leaderboard?category=smoke-invalid')).status, 400);
 const session = await get('/api/account/session');
 assert.equal(session.status, 200);
 assert.equal(session.headers.get('cache-control'), 'no-store');
 assert.equal((await session.json()).user, null);
-const transport = await get('/socket.io/?EIO=4&transport=polling');
-assert.equal(transport.status, 200);
-assert.match(await transport.text(), /^0\{"sid":/);
-console.log('Combined routes, assets, redirects, account API, and Socket.IO checks passed.');
+for (const path of ['/socket.io', '/hearts/socket.io', '/euchre/socket.io']) {
+  for (const slash of ['', '/']) {
+    const transport = await get(`${path}${slash}?EIO=4&transport=polling`);
+    assert.equal(transport.status, 200, path + slash);
+    assert.match(await transport.text(), /^0\{"sid":/);
+  }
+}
+console.log('Combined routes, game API aliases, assets, redirects, account API, and legacy/new Socket.IO checks passed.');

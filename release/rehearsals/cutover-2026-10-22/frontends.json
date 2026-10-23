@@ -1,0 +1,14 @@
+{
+  "hearts": {
+    "tag": "web-v1.0.1",
+    "sourceRevision": "5476210f26b0335c7a5754b12b6644f6057c5521",
+    "workflow": "https://github.com/shmemcat/hearts/actions/runs/39885944741",
+    "conclusion": "success"
+  },
+  "euchre": {
+    "tag": "web-v1.0.0",
+    "sourceRevision": "2fe78346f148786fc333722596ecc3ceb01e3e6d",
+    "workflow": "https://github.com/shmemcat/euchre/actions/runs/39885533003",
+    "conclusion": "success"
+  }
+}

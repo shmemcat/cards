@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-22",
+  "completedUTC": "2026-10-23T02:38:55.992674+00:00",
+  "reviewedInfraRevision": "ad032ec5232008a6e1a1f16483a61bafc4d34d5c",
+  "activeTarget": "nuttybox-cards-split",
+  "systems": {
+    "nuttybox-cards-split": "/nix/store/y636b0dz69790x6mry5j9aif21achdpz-nixos-system-nuttybox-26.11.20261014.55bfb4d",
+    "nuttybox-cards-rollback": "/nix/store/rnn109gi066qhv9zkj394d8w3frm244x-nixos-system-nuttybox-26.11.20261014.55bfb4d"
+  },
+  "backup": {
+    "directory": "/data/backups/cards-split/window-20261022-onpaz1sg",
+    "file": "hearts.dump",
+    "rootOnly": true,
+    "restored": true,
+    "checksumMatched": true,
+    "backupSha256": "24396b3af52216a00b788eb372a0db8eeabe5849f04bf62f0927169a824c33f9",
+    "originalTablesPreserved": 11,
+    "originalSequencePositionsPreserved": true
+  },
+  "maintenance": {
+    "writersStoppedBeforeBackup": true,
+    "activeGamesAtHandoff": 0,
+    "backupCompletedUTC": "2026-10-23T02:24:09.047770+00:00",
+    "reopenedUTC": "2026-10-23T02:37:44.868814+00:00"
+  },
+  "migrations": {
+    "originalTablesPreserved": 11,
+    "originalSequencePositionsPreserved": true
+  },
+  "runtimePermissions": {
+    "roles": 3,
+    "permissionChecks": 501
+  },
+  "postSmokeData": {
+    "originalStableTablesPreserved": 9,
+    "originalSoloSaves": 31,
+    "sequenceHighWaterMarksPreserved": true,
+    "testAccountRemoved": true,
+    "pendingDeletions": 0
+  },
+  "existingSoloSavesRecovered": 31,
+  "privateChecks": {
+    "components": 3,
+    "sharedLogin": true,
+    "independentRestarts": true,
+    "recovery": true,
+    "deletion": true,
+    "signOutRevocation": true,
+    "separateSockets": true,
+    "gatewayProbeRestart": true,
+    "probeAddressRefreshed": true,
+    "frontends": {
+      "publishedFrontendsServed": 2,
+      "separateSocketPaths": true,
+      "correctAssetBases": true,
+      "missingAssets404": true
+    },
+    "privateProductionProbe": true,
+    "externalEmailSent": false
+  },
+  "publicChecks": {
+    "publicHost": "https://cards.shmem.dev",
+    "htmlRoutes": 6,
+    "assets": 16,
+    "secureSharedCookie": true,
+    "privateRoutesBlocked": true,
+    "oldTransportReloadRequired": true,
+    "separatePollingAndWebSocketUpgrades": 2,
+    "legacyRedirects": 3,
+    "accountAndGameRoutes": true
+  },
+  "containers": {
+    "shmemcity-cards-accounts": {
+      "image": "ghcr.io/shmemcat/cards-accounts-api@sha256:00bf7b7e56bcba9a72773572573cdc37ff4e6c31ed325200a1e5a9caf1e66528",
+      "id": "b63f5aa020a1",
+      "healthy": true,
+      "autoUpdate": false
+    },
+    "shmemcity-hearts-game": {
+      "image": "ghcr.io/shmemcat/hearts-game-api@sha256:845ca7dedf5378107694357d470b5634d73dafe0c93ebc1d14ab0544f4732434",
+      "id": "e2bdf59f61da",
+      "healthy": true,
+      "autoUpdate": false
+    },
+    "shmemcity-euchre-game": {
+      "image": "ghcr.io/shmemcat/euchre-game-api@sha256:eb3dc105381025d092590664b7850ec18d5200241b949aca68ae4c0caa246fa1",
+      "id": "8d7fec752cfd",
+      "healthy": true,
+      "autoUpdate": false
+    },
+    "shmemcity-cards-web": {
+      "image": "ghcr.io/shmemcat/cards-web@sha256:65cc5690489fb615d02423e073e94b2201d6a8e038ce2ed439e17b821e5c0023",
+      "id": "62b8bacb27f0",
+      "healthy": true,
+      "autoUpdate": false
+    },
+    "shmemcity-hearts-cards-web": {
+      "image": "ghcr.io/shmemcat/hearts-cards-web@sha256:5b39169cdd7ead8988242746969a0ad4950d010cb388887abdc4e7b068d4951e",
+      "id": "f70bf6ee036e",
+      "healthy": true,
+      "autoUpdate": false
+    },
+    "shmemcity-euchre-web": {
+      "image": "ghcr.io/shmemcat/euchre-web@sha256:1dd177cec3ead9e69a9ba223ddebc48af28593baf690f1ff54b1461149e21834",
+      "id": "f96ca4d93774",
+      "healthy": true,
+      "autoUpdate": false
+    }
+  },
+  "services": {
+    "accounts": {
+      "health": {
+        "component": "cards-accounts",
+        "revision": "0f77c360d74cb72da4b3b634ccf5ff6378c3660f",
+        "status": "ok",
+        "version": "accounts-v1.0.0"
+      },
+      "ready": {
+        "component": "cards-accounts",
+        "status": "ready"
+      }
+    },
+    "hearts": {
+      "health": {
+        "component": "hearts-game",
+        "revision": "7a28dce5314f887d4f0bcd9f8b2fecd7e7c6905b",
+        "status": "ok",
+        "version": "game-v1.0.0"
+      },
+      "ready": {
+        "component": "hearts-game",
+        "status": "ready"
+      }
+    },
+    "euchre": {
+      "health": {
+        "component": "euchre-game",
+        "revision": "66843540219f89811b843fef28154229078fc7e6",
+        "status": "ok",
+        "version": "game-v1.0.0"
+      },
+      "ready": {
+        "component": "euchre-game",
+        "status": "ready"
+      }
+    }
+  },
+  "legacyWriterStopped": true,
+  "unrelatedUpdaterRestored": true,
+  "temporaryCredentialsRemoved": true,
+  "temporaryAdmissionConditionsRemoved": true,
+  "observedMaintenanceAdjustments": [
+    "Selected the installed psycopg2 adapter explicitly in the temporary owner connection; reviewed migration source was unchanged.",
+    "Used temporary ConditionPathExists drop-ins because generated /etc units override ordinary runtime masks; all conditions were removed after reopening.",
+    "Refreshed the private test tunnel after its disposable gateway received a new address on restart; production gateway has its fixed published port."
+  ],
+  "mail": {
+    "existingSigningAndProviderSettingsPreserved": true,
+    "externalDeliveryTestSent": false
+  },
+  "runtime": "Production NixOS switch, Podman containers, host PostgreSQL; public HTTPS probes."
+}

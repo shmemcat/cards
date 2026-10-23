@@ -1,0 +1,37 @@
+name: Check standalone accounts
+
+on:
+  pull_request:
+    paths: ["api/**", ".github/workflows/accounts-checks.yml", ".github/workflows/accounts-release.yml"]
+  push:
+    paths: ["api/**", ".github/workflows/accounts-checks.yml", ".github/workflows/accounts-release.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.1"
+          python-version: "3.11"
+      - name: Check accounts without game repositories
+        working-directory: api
+        run: |
+          uv sync --locked --extra dev
+          uv run --locked --extra dev pytest -q
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: api
+          load: true
+          tags: cards-accounts-api:check
+      - name: Check account-only image imports
+        run: |
+          docker run --rm cards-accounts-api:check python -c "import sys; from cards_accounts import create_app; app=create_app({'SQLALCHEMY_DATABASE_URI':'sqlite://','REQUIRE_GAME_PEERS':False}); assert 'socketio' not in app.extensions; assert not any(m.split('.')[0] in {'hearts','hearts_server','euchre_server'} for m in sys.modules)"

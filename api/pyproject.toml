@@ -1,0 +1,21 @@
+[project]
+name = "cards-accounts-api"
+version = "0.1.0"
+description = "Shared Cards accounts, sessions, profiles, and deletion coordination"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=2.2.2,<3.1.0", "werkzeug>=2.2.0,<3.1.0",
+    "gunicorn>=21.0.0,<26", "flask-sqlalchemy>=3.1.0", "psycopg2-binary>=2.9.0",
+    "argon2-cffi>=23.1.0", "pyjwt>=2.8.0", "flask-cors>=4.0.0",
+    "flask-limiter>=3.5.0", "alembic>=1.13.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0.0", "black>=25.0.0"]
+
+[tool.setuptools.packages.find]
+include = ["cards_accounts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

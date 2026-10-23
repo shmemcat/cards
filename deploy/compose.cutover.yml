@@ -1,0 +1,31 @@
+# Included only by the explicit disposable cutover runner.
+services:
+  db:
+    volumes: ["${SPLIT_INFRA_DIR:?}:/infra:ro"]
+  legacy:
+    image: ${LEGACY_IMAGE:?}
+    environment:
+      FLASK_APP: hearts:app
+      DATABASE_URL: postgresql://migrator:split-migration-local@db:5432/shmemcity?options=-csearch_path%3Dhearts
+      JWT_SECRET: ${SPLIT_JWT_SECRET:?}
+      CARDS_PUBLIC_URL: ${SPLIT_PUBLIC_URL:?}
+      FRONTEND_URL: ${SPLIT_PUBLIC_URL:?}
+      CORS_ORIGINS: ${SPLIT_PUBLIC_URL:?}
+      CARDS_EMAIL_TRANSPORT: file
+      CARDS_EMAIL_OUTBOX: /outbox
+    volumes: ["${SPLIT_OUTBOX:?}:/outbox"]
+    networks:
+      default:
+        aliases: [cards-api]
+  hearts-web:
+    image: ${HEARTS_WEB_IMAGE:?}
+    networks:
+      default:
+        aliases: [hearts-web]
+  euchre-web:
+    image: ${EUCHRE_WEB_IMAGE:?}
+    networks:
+      default:
+        aliases: [euchre-web]
+  gateway:
+    volumes: ["${SPLIT_PROXY_FILE:?}:/etc/nginx/cards-proxy.conf:ro"]
