@@ -125,6 +125,9 @@ function renderSignedIn() {
 }
 
 function render() {
+  const title = session?.user ? 'User' : 'Sign in';
+  document.querySelector('#account h1').textContent = title;
+  document.title = `${title} · Cards`;
   content.setAttribute('aria-busy', 'false');
   if (session?.user && view !== 'reset' && view !== 'verify') {
     renderSignedIn();
