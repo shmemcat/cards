@@ -1,6 +1,12 @@
 # Build from the Cards repository root. Games deploy independently.
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY public/ ./public/
+COPY scripts/build.mjs ./scripts/build.mjs
+RUN node scripts/build.mjs
+
 FROM nginx:alpine
-COPY public/ /usr/share/nginx/html/
+COPY --from=builder /app/dist/ /usr/share/nginx/html/
 ENV CARDS_DNS_RESOLVER=127.0.0.11 NGINX_ENVSUBST_FILTER=CARDS_DNS_RESOLVER
 COPY deploy/nginx.conf /etc/nginx/templates/default.conf.template
 COPY deploy/proxy.conf /etc/nginx/cards-proxy.conf
