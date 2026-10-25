@@ -2,7 +2,7 @@ import secrets
 from datetime import datetime, timedelta
 from cards_accounts.extensions import db
 from cards_accounts.game_client import profile_preferences, preferences_available
-from sqlalchemy import event, select, update
+from sqlalchemy import event, inspect, select, update
 
 
 class User(db.Model):
@@ -22,6 +22,13 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
+        turn_sound = dict.fromkeys(("golf", "euchre", "hearts"), False)
+        if inspect(db.engine).has_table("account_turn_sound_options"):
+            turn_sound.update(
+                (row.game, row.enabled)
+                for row in self.turn_sound_options
+                if row.game in turn_sound
+            )
         return {
             "id": self.id,
             "username": self.username,
@@ -29,6 +36,7 @@ class User(db.Model):
             "name": self.username,
             "email_verified": self.email_verified,
             "profile_icon": self.profile_icon,
+            "turn_sound": turn_sound,
             "preferences": profile_preferences(self.id),
             "preferences_available": preferences_available(self.id),
         }
@@ -40,6 +48,19 @@ class User(db.Model):
         self.verification_token = hash_token(token)
         self.verification_expires = datetime.utcnow() + timedelta(hours=expires_hours)
         return token
+
+
+class TurnSoundOption(db.Model):
+    __tablename__ = "account_turn_sound_options"
+
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    game = db.Column(db.String(16), primary_key=True)
+    enabled = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
+    user = db.relationship(
+        "User", backref=db.backref("turn_sound_options", lazy="select")
+    )
 
 
 class PasswordResetToken(db.Model):

@@ -11,6 +11,7 @@ from urllib.parse import urlencode, urlsplit
 
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import inspect
 from cards_accounts.deletions import is_deleting
 
 from cards_accounts.account_sessions import (
@@ -34,7 +35,7 @@ from cards_accounts.email_templates import (
 )
 from cards_accounts.email_utils import _send, hash_token
 from cards_accounts.extensions import db, limiter
-from cards_accounts.models import PasswordResetToken, User
+from cards_accounts.models import PasswordResetToken, TurnSoundOption, User
 from cards_accounts.account_security import change_email, reset_password_with_token
 
 account_bp = Blueprint("cards_account", __name__, url_prefix="/account")
@@ -157,8 +158,18 @@ def update_account_profile():
     if not user:
         return jsonify(error="Sign in to customize your profile."), 401
     data = body()
-    if not any(key in data for key in ("profile_icon", "email")):
+    if not any(key in data for key in ("profile_icon", "email", "turn_sound")):
         return jsonify(error="No changes provided."), 400
+    turn_sound = data.get("turn_sound")
+    if "turn_sound" in data and (
+        not isinstance(turn_sound, dict)
+        or turn_sound.get("game") not in ("golf", "euchre", "hearts")
+        or type(turn_sound.get("enabled")) is not bool
+    ):
+        return (
+            jsonify(error="Choose a game and turn the indicator sound on or off."),
+            400,
+        )
     icon = field(data, "profile_icon").strip()
     if "profile_icon" in data and icon not in VALID_PROFILE_ICONS:
         return jsonify(error="Choose a valid profile icon."), 400
@@ -172,6 +183,21 @@ def update_account_profile():
     email_changed = "email" in data and email != user.email
     if "profile_icon" in data:
         user.profile_icon = icon
+    if turn_sound is not None:
+        if not inspect(db.engine).has_table("account_turn_sound_options"):
+            return (
+                jsonify(
+                    error="Turn indicator settings are being updated. Please try again shortly."
+                ),
+                503,
+            )
+        # Serialize first-time option creation for concurrent tabs on PostgreSQL.
+        User.query.filter_by(id=user.id).with_for_update().one()
+        option = db.session.get(TurnSoundOption, (user.id, turn_sound["game"]))
+        if option is None:
+            option = TurnSoundOption(user_id=user.id, game=turn_sound["game"])
+            db.session.add(option)
+        option.enabled = turn_sound["enabled"]
     token = None
     if email_changed:
         current = current_session()

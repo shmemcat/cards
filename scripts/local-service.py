@@ -116,7 +116,7 @@ else:
         from sqlalchemy import event
 
         forbidden = (
-            "users|account_sessions|password_reset_tokens|account_deletion_requests"
+            "users|account_sessions|password_reset_tokens|account_deletion_requests|account_turn_sound_options"
         )
         forbidden += (
             "|euchre_tables|euchre_game_results"

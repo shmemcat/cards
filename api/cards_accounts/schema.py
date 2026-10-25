@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cards_accounts.extensions import db
 
-REVISION = "accounts_001"
+REVISION = "accounts_002"
 
 
 def schema_ready():
@@ -26,11 +26,14 @@ def schema_ready():
         }
         if not required <= set(inspector.get_table_names()):
             return False
-        return (
-            db.session.execute(
-                text("SELECT version_num FROM cards_accounts_alembic_version")
-            ).scalar()
-            == REVISION
+        revision = db.session.execute(
+            text("SELECT version_num FROM cards_accounts_alembic_version")
+        ).scalar()
+        # A compatible server is promoted before the additive migration. Keep
+        # it ready on both revisions so migration and rollback remain possible.
+        return revision == "accounts_001" or (
+            revision == REVISION
+            and "account_turn_sound_options" in inspector.get_table_names()
         )
     except SQLAlchemyError:
         db.session.rollback()

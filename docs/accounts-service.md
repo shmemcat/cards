@@ -9,10 +9,25 @@ explicit `accounts-vX.Y.Z` tag. There is no moving `latest` account tag.
 ## Ownership
 
 Accounts owns `users`, `account_sessions`, `password_reset_tokens`,
-`account_deletion_requests`, `account_id_sequence`, and
+`account_deletion_requests`, `account_id_sequence`, `account_turn_sound_options`, and
 `cards_accounts_alembic_version`. Only accounts receives the existing JWT signing
 secret, password hashes, recovery/session credentials, and mail credentials.
 It imports no Hearts package and registers no game routes or sockets.
+
+Turn indicator sounds are strictly opt-in for each game. Account session responses
+include `user.turn_sound` with `golf`, `euchre`, and `hearts` booleans, all false
+unless explicitly enabled. `POST /account/profile` accepts
+`{"turn_sound":{"game":"golf","enabled":true}}`; disabling uses `false`.
+Choices persist across devices, do not carry to guests or other accounts, and are
+removed with account deletion. Run the additive `accounts_002` migration and apply
+the updated runtime grants before using the new account service/frontend versions.
+
+The account server supports both `accounts_001` and `accounts_002` during the
+additive upgrade. Promote the compatible server with the existing schema descriptor
+first; login, profile edits and deletion remain available before the new table is
+created. During the explicit maintenance window, back up, migrate and grant the
+new table, then promote the final `accounts_002` release before the game frontends.
+The compatible release remains a working rollback image after migration.
 
 Hearts retains `active_games`, `user_stats`, `difficulty_stats`, `game_results`,
 and `user_preferences`. Euchre retains `euchre_tables` and

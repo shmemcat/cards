@@ -290,6 +290,7 @@ def test_accounts_service_has_no_game_registration_or_imports(app):
         "account_sessions",
         "account_deletion_requests",
         "account_id_sequence",
+        "account_turn_sound_options",
     }
     assert app.test_client().post("/games/start").status_code == 404
 

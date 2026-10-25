@@ -7,12 +7,13 @@ import uuid
 
 from flask import current_app
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import inspect
 
 from cards_accounts.account_contracts import DeletionResult
 from cards_accounts.auth_utils import verify_password
 from cards_accounts.extensions import db
 from cards_accounts.game_client import call_game, GameUnavailable
-from cards_accounts.models import User, PasswordResetToken
+from cards_accounts.models import User, PasswordResetToken, TurnSoundOption
 
 
 class DeletionRequest(db.Model):
@@ -106,7 +107,11 @@ def process_deletion(job_id):
     job = DeletionRequest.query.populate_existing().filter_by(id=job_id).one()
     user_id, acknowledgements = job.user_id, json.loads(job.acknowledgements)
     db.session.commit()
-    games = ("hearts", "euchre", *(["golf"] if "golf" in current_app.config["GAME_SERVICES"] else []))
+    games = (
+        "hearts",
+        "euchre",
+        *(["golf"] if "golf" in current_app.config["GAME_SERVICES"] else []),
+    )
     for game in games:
         if acknowledgements.get(game):
             continue
@@ -156,6 +161,10 @@ def process_deletion(job_id):
             PasswordResetToken.query.filter_by(user_id=user_id).delete(
                 synchronize_session=False
             )
+            if inspect(db.engine).has_table("account_turn_sound_options"):
+                TurnSoundOption.query.filter_by(user_id=user_id).delete(
+                    synchronize_session=False
+                )
             User.query.filter_by(id=user_id).delete(synchronize_session="fetch")
             job.status, job.completed_at = "completed", datetime.utcnow()
             job.lease_owner, job.lease_until = None, None

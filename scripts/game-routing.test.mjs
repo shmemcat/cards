@@ -395,6 +395,26 @@ test(
         ['Euchre Vite', vites[1], 'euchre'],
         ['Hearts standalone Nginx', `http://127.0.0.1:${standalonePort}`, 'hearts'],
       ];
+      await t.test('gateway redirects preserve the public origin behind HTTPS termination', async () => {
+        const query = '?next=%2Fgolf%2F&value=one%20two';
+        for (const path of ['/hearts', '/euchre', '/golf', '/user']) {
+          const response = await fetch(`http://127.0.0.1:${gatewayPort}${path}${query}`, {
+            redirect: 'manual', headers: { 'X-Forwarded-Proto': 'https' },
+          });
+          assert.equal(response.status, 308, path);
+          assert.equal(response.headers.get('location'), path + '/' + query, path);
+        }
+        for (const [path, view] of [
+          ['/verify-email', 'verify'], ['/reset-password', 'reset'],
+          ['/hearts/verify-email', 'verify'], ['/hearts/reset-password', 'reset'],
+        ]) {
+          const response = await fetch(`http://127.0.0.1:${gatewayPort}${path}?token=one%2Ftwo`, {
+            redirect: 'manual', headers: { 'X-Forwarded-Proto': 'https' },
+          });
+          assert.equal(response.status, 302, path);
+          assert.equal(response.headers.get('location'), `/user/?view=${view}&token=one%2Ftwo`, path);
+        }
+      });
       assert.equal((await fetch(target + '/_internal/private-probe')).status, 200);
       await t.test('private APIs stay unreachable through every public proxy', async () => {
         for (const base of [...proxies.map(([, base]) => base), `http://127.0.0.1:${euchreWebPort}`]) {

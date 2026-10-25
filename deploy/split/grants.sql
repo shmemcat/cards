@@ -3,7 +3,7 @@ DO $$ BEGIN
   EXECUTE format('REVOKE CREATE ON SCHEMA %I FROM PUBLIC', current_schema());
   EXECUTE format('GRANT USAGE ON SCHEMA %I TO accounts_runtime, hearts_runtime, euchre_runtime', current_schema());
 END $$;
-GRANT SELECT, INSERT, UPDATE, DELETE ON users, account_sessions, password_reset_tokens, account_deletion_requests, account_id_sequence TO accounts_runtime;
+GRANT SELECT, INSERT, UPDATE, DELETE ON users, account_sessions, password_reset_tokens, account_deletion_requests, account_id_sequence, account_turn_sound_options TO accounts_runtime;
 GRANT SELECT ON cards_accounts_alembic_version TO accounts_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON active_games, user_stats, user_preferences, difficulty_stats, game_results, hearts_account_deletions TO hearts_runtime;
 GRANT SELECT ON hearts_alembic_version, hearts_account_schema_version TO hearts_runtime;

@@ -37,6 +37,21 @@ for (const path of ['/', '/user/', '/hearts/', '/hearts/about', '/euchre/', '/eu
 for (const path of ['/__dev/mail/', '/.env', '/hearts/.env', '/euchre/.env', '/hearts/assets/missing.js', '/euchre/assets/missing.css']) {
   assert.equal((await get(path)).status, 404, path);
 }
+// Local redirects must keep the browser's HTTPS origin and never expose port 8080.
+for (const path of ['/hearts', '/euchre', '/golf', '/user']) {
+  const query = '?next=%2Fgolf%2F&value=one%20two';
+  const response = await get(path + query);
+  assert.equal(response.status, 308, path);
+  assert.equal(response.headers.get('location'), path + '/' + query, path);
+}
+for (const [path, view] of [
+  ['/verify-email', 'verify'], ['/reset-password', 'reset'],
+  ['/hearts/verify-email', 'verify'], ['/hearts/reset-password', 'reset'],
+]) {
+  const response = await get(path + '?token=smoke%2Fonly');
+  assert.equal(response.status, 302, path);
+  assert.equal(response.headers.get('location'), `/user/?view=${view}&token=smoke%2Fonly`, path);
+}
 for (const [path, host, destination] of [
   ['/game/lobby/ABC123?invite=1', 'hearts.shmem.dev', 'https://cards.shmem.dev/hearts/game/lobby/ABC123?invite=1'],
   ['/game?resume=1', 'euchre.shmem.dev', 'https://cards.shmem.dev/euchre/game?resume=1'],

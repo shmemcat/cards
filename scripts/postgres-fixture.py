@@ -167,6 +167,7 @@ def privileges():
             "password_reset_tokens",
             "account_deletion_requests",
             "account_id_sequence",
+            "account_turn_sound_options",
         },
         "hearts_runtime": {
             "active_games",

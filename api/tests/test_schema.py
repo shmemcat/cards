@@ -90,3 +90,56 @@ def test_independent_imports_exclude_game_modules():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_turn_sound_upgrade_preserves_existing_accounts(app, user):
+    with app.app_context():
+        with db.engine.begin() as connection:
+            connection.execute(text("DROP TABLE account_turn_sound_options"))
+            connection.execute(
+                text(
+                    "UPDATE cards_accounts_alembic_version SET version_num = 'accounts_001'"
+                )
+            )
+        assert schema_ready()
+        upgrade_schema()
+        assert schema_ready()
+        existing = db.session.get(User, user)
+        assert existing.username == "existing_player"
+        assert existing.profile_icon == "cat"
+        assert existing.to_dict()["turn_sound"] == dict.fromkeys(
+            ("golf", "euchre", "hearts"), False
+        )
+
+
+def test_compatible_server_keeps_accounts_usable_before_migration(app, client, user):
+    from tests.conftest import post, sign_in
+
+    with app.app_context():
+        with db.engine.begin() as connection:
+            connection.execute(text("DROP TABLE account_turn_sound_options"))
+            connection.execute(
+                text(
+                    "UPDATE cards_accounts_alembic_version SET version_num = 'accounts_001'"
+                )
+            )
+    session = sign_in(client)
+    assert session.status_code == 200
+    assert session.json["user"]["turn_sound"] == dict.fromkeys(
+        ("golf", "euchre", "hearts"), False
+    )
+    assert post(client, "profile", {"profile_icon": "sparkles"}).status_code == 200
+    assert (
+        post(
+            client, "profile", {"turn_sound": {"game": "golf", "enabled": True}}
+        ).status_code
+        == 503
+    )
+    with app.app_context():
+        upgrade_schema()
+    assert (
+        post(client, "profile", {"turn_sound": {"game": "golf", "enabled": True}}).json[
+            "user"
+        ]["turn_sound"]["golf"]
+        is True
+    )
