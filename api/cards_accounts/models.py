@@ -23,12 +23,30 @@ class User(db.Model):
 
     def to_dict(self):
         turn_sound = dict.fromkeys(("golf", "euchre", "hearts"), False)
-        if inspect(db.engine).has_table("account_turn_sound_options"):
-            turn_sound.update(
-                (row.game, row.enabled)
-                for row in self.turn_sound_options
-                if row.game in turn_sound
-            )
+        turn_sound_options = {
+            game: {"sound": "pop", "volume": 0.15} for game in turn_sound
+        }
+        inspector = inspect(db.engine)
+        if inspector.has_table("account_turn_sound_options"):
+            # Explicit columns keep existing sessions usable before accounts_003.
+            columns = {
+                column["name"]
+                for column in inspector.get_columns("account_turn_sound_options")
+            }
+            fields = [TurnSoundOption.game, TurnSoundOption.enabled]
+            if {"sound", "volume"} <= columns:
+                fields += [TurnSoundOption.sound, TurnSoundOption.volume]
+            rows = db.session.execute(
+                select(*fields).where(TurnSoundOption.user_id == self.id)
+            ).mappings()
+            for row in rows:
+                if row["game"] in turn_sound:
+                    turn_sound[row["game"]] = row["enabled"]
+                    if "sound" in row:
+                        turn_sound_options[row["game"]] = {
+                            "sound": row["sound"],
+                            "volume": row["volume"],
+                        }
         return {
             "id": self.id,
             "username": self.username,
@@ -37,6 +55,7 @@ class User(db.Model):
             "email_verified": self.email_verified,
             "profile_icon": self.profile_icon,
             "turn_sound": turn_sound,
+            "turn_sound_options": turn_sound_options,
             "preferences": profile_preferences(self.id),
             "preferences_available": preferences_available(self.id),
         }
@@ -58,6 +77,10 @@ class TurnSoundOption(db.Model):
     )
     game = db.Column(db.String(16), primary_key=True)
     enabled = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
+    sound = db.Column(
+        db.String(24), nullable=False, default="pop", server_default="pop"
+    )
+    volume = db.Column(db.Float, nullable=False, default=0.15, server_default="0.15")
     user = db.relationship(
         "User", backref=db.backref("turn_sound_options", lazy="select")
     )

@@ -35,7 +35,7 @@ from cards_accounts.email_templates import (
 )
 from cards_accounts.email_utils import _send, hash_token
 from cards_accounts.extensions import db, limiter
-from cards_accounts.models import PasswordResetToken, TurnSoundOption, User
+from cards_accounts.models import PasswordResetToken, User
 from cards_accounts.account_security import change_email, reset_password_with_token
 
 account_bp = Blueprint("cards_account", __name__, url_prefix="/account")
@@ -164,10 +164,23 @@ def update_account_profile():
     if "turn_sound" in data and (
         not isinstance(turn_sound, dict)
         or turn_sound.get("game") not in ("golf", "euchre", "hearts")
-        or type(turn_sound.get("enabled")) is not bool
+        or not ({"enabled", "sound", "volume"} & turn_sound.keys())
+        or bool(turn_sound.keys() - {"game", "enabled", "sound", "volume"})
+        or ("enabled" in turn_sound and type(turn_sound["enabled"]) is not bool)
+        or (
+            "sound" in turn_sound
+            and turn_sound["sound"] not in ("pop", "chime", "ding", "notification")
+        )
+        or (
+            "volume" in turn_sound
+            and (
+                type(turn_sound["volume"]) not in (int, float)
+                or not 0 <= turn_sound["volume"] <= 1
+            )
+        )
     ):
         return (
-            jsonify(error="Choose a game and turn the indicator sound on or off."),
+            jsonify(error="Choose a valid game, indicator sound, and volume."),
             400,
         )
     icon = field(data, "profile_icon").strip()
@@ -184,7 +197,20 @@ def update_account_profile():
     if "profile_icon" in data:
         user.profile_icon = icon
     if turn_sound is not None:
-        if not inspect(db.engine).has_table("account_turn_sound_options"):
+        inspector = inspect(db.engine)
+        table_available = inspector.has_table("account_turn_sound_options")
+        columns = (
+            {
+                column["name"]
+                for column in inspector.get_columns("account_turn_sound_options")
+            }
+            if table_available
+            else set()
+        )
+        if not table_available or (
+            {"sound", "volume"} & turn_sound.keys()
+            and not {"sound", "volume"} <= columns
+        ):
             return (
                 jsonify(
                     error="Turn indicator settings are being updated. Please try again shortly."
@@ -193,11 +219,29 @@ def update_account_profile():
             )
         # Serialize first-time option creation for concurrent tabs on PostgreSQL.
         User.query.filter_by(id=user.id).with_for_update().one()
-        option = db.session.get(TurnSoundOption, (user.id, turn_sound["game"]))
-        if option is None:
-            option = TurnSoundOption(user_id=user.id, game=turn_sound["game"])
-            db.session.add(option)
-        option.enabled = turn_sound["enabled"]
+        # Reflect the adopted columns so old enabled-only clients also work
+        # during the compatible-server stage of the additive upgrade.
+        from sqlalchemy import MetaData, Table, select
+
+        table = Table(
+            "account_turn_sound_options",
+            MetaData(),
+            autoload_with=db.session.connection(),
+        )
+        condition = (table.c.user_id == user.id) & (table.c.game == turn_sound["game"])
+        values = {
+            key: turn_sound[key]
+            for key in ("enabled", "sound", "volume")
+            if key in turn_sound
+        }
+        if db.session.execute(select(table.c.user_id).where(condition)).first():
+            db.session.execute(table.update().where(condition).values(**values))
+        else:
+            db.session.execute(
+                table.insert().values(
+                    user_id=user.id, game=turn_sound["game"], **values
+                )
+            )
     token = None
     if email_changed:
         current = current_session()

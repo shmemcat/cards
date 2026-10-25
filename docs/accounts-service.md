@@ -29,6 +29,21 @@ created. During the explicit maintenance window, back up, migrate and grant the
 new table, then promote the final `accounts_002` release before the game frontends.
 The compatible release remains a working rollback image after migration.
 
+`accounts_003` adds `sound` and `volume` to the same owned table. Session responses
+include per-game `user.turn_sound_options` with `sound` (`pop`, `chime`, `ding`, or
+`notification`) and `volume` (0–1). Defaults are Pop and 15%, preserving the
+previous default effect level. `POST /account/profile` accepts either or both
+fields inside `turn_sound`, alongside `game` and the optional `enabled` boolean.
+Changing a sound or volume never enables the indicator. Disabling retains both
+choices. Older enabled-only clients continue to work.
+
+Before deployment, publish a compatible account image with the adopted
+`accounts_002` descriptor, then explicitly back up and apply `accounts_003` with
+the schema owner. Existing sessions and enabled-only profile edits remain usable
+before migration; new sound/volume writes return a temporary update error.
+Existing table grants cover the new columns. Promote the final `accounts_003`
+image before releasing these frontend controls. Runtime credentials never migrate.
+
 Hearts retains `active_games`, `user_stats`, `difficulty_stats`, `game_results`,
 and `user_preferences`. Euchre retains `euchre_tables` and
 `euchre_game_results`. Their supplemental deletion receipts/version tables are

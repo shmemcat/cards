@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cards_accounts.extensions import db
 
-REVISION = "accounts_002"
+REVISION = "accounts_003"
 
 
 def schema_ready():
@@ -31,10 +31,17 @@ def schema_ready():
         ).scalar()
         # A compatible server is promoted before the additive migration. Keep
         # it ready on both revisions so migration and rollback remain possible.
-        return revision == "accounts_001" or (
-            revision == REVISION
-            and "account_turn_sound_options" in inspector.get_table_names()
-        )
+        if revision == "accounts_001":
+            return True
+        if "account_turn_sound_options" not in inspector.get_table_names():
+            return False
+        if revision == "accounts_002":
+            return True
+        columns = {
+            column["name"]
+            for column in inspector.get_columns("account_turn_sound_options")
+        }
+        return revision == REVISION and {"sound", "volume"} <= columns
     except SQLAlchemyError:
         db.session.rollback()
         return False

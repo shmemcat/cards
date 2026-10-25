@@ -181,6 +181,7 @@ def privileges():
             "euchre_tables",
             "euchre_game_results",
             "euchre_account_deletions",
+            "euchre_achievement_state",
         },
     }
     versions = {

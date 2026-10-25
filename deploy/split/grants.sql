@@ -8,6 +8,11 @@ GRANT SELECT ON cards_accounts_alembic_version TO accounts_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON active_games, user_stats, user_preferences, difficulty_stats, game_results, hearts_account_deletions TO hearts_runtime;
 GRANT SELECT ON hearts_alembic_version, hearts_account_schema_version TO hearts_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON euchre_tables, euchre_game_results, euchre_account_deletions TO euchre_runtime;
+DO $$ BEGIN
+  IF to_regclass('euchre_achievement_state') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON euchre_achievement_state TO euchre_runtime;
+  END IF;
+END $$;
 GRANT SELECT ON euchre_alembic_version, euchre_account_schema_version TO euchre_runtime;
 
 DO $$
