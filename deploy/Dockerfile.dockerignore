@@ -1,6 +1,8 @@
 **
 !public/
 !public/**
+!scripts/
+!scripts/build.mjs
 !deploy/
 !deploy/nginx.conf
 !deploy/proxy.conf
