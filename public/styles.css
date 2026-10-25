@@ -162,9 +162,9 @@ h1 {
 }
 .games {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 28px;
-  width: min(100%, 820px);
+  width: min(100%, 1100px);
   margin-inline: auto;
 }
 .game-choice {
@@ -376,4 +376,29 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
   .game-choice { transition: none; }
   .game-choice:hover, .game-choice:active { transform: none; }
   .creator:hover .sparkle, .creator:focus-visible .sparkle { animation: none; opacity: 1; }
+}
+
+.game-golf {
+  --game-panel: #263d36;
+  --game-text: #e8eddc;
+  --game-logo: #53796a;
+  --game-button: #a5c8aa;
+  --game-button-hover: #86ae92;
+  --game-button-text: #243d32;
+  --game-button-shadow: #456c5859;
+  --game-button-shadow-hover: #34534366;
+  --game-shine: #dcebd8;
+  --game-shine-hover: #c3d9bf;
+}
+[data-theme="light"] .game-golf {
+  --game-panel: #e9eee2;
+  --game-text: #2e4b3e;
+  --game-logo: #cad9bf;
+}
+.game-golf .game-logo { --game-mask: url("/assets/golf-logo.svg"); }
+@media (min-width: 641px) and (max-width: 900px) {
+  .games { gap: 18px; }
+  .game-choice { padding-inline: 12px; }
+  .game-logo { width: 150px; height: 170px; }
+  .game-choice h2 { font-size: 36px; letter-spacing: 5px; text-indent: 5px; }
 }

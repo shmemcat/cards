@@ -6,6 +6,13 @@ const record = { version: 1, component: 'hearts-web', image: `ghcr.io/shmemcat/h
 test('preserves published records and the exact host generation', () => {
   assert.deepEqual(prepareRequest('hearts', status, [record]), { version: 1, repo: 'hearts', expectedGeneration: status.generation, releases: [record] });
 });
+
+test('Golf promotions keep their repository boundary', () => {
+  const golf = { ...record, component: 'golf-web', image: `ghcr.io/shmemcat/golf-web@sha256:${'b'.repeat(64)}` };
+  assert.equal(prepareRequest('golf', status, [golf]).repo, 'golf');
+  assert.throws(() => prepareRequest('cards', status, [golf]));
+  assert.throws(() => prepareRequest('golf', status, [record]));
+});
 test('refuses pending recovery, foreign components and duplicates', () => {
   assert.throws(() => prepareRequest('hearts', { ...status, pending: true }, [record]));
   assert.throws(() => prepareRequest('euchre', status, [record]));

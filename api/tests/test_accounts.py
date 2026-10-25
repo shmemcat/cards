@@ -352,3 +352,25 @@ def test_unexpected_foreign_key_keeps_deletion_pending(client, app, user):
         db.session.commit()
         assert process_deletion(job.id)
         assert db.session.get(User, 42) is None
+
+
+def test_deletion_waits_for_configured_golf_without_changing_existing_games(client, app, user, monkeypatch):
+    app.config["GAME_SERVICES"]["golf"] = {"url": "http://golf.invalid:5003", "token": "golf-callback-test-token-123456789012345"}
+    sign_in(client)
+    unavailable = {"golf"}
+    calls = []
+    def cleanup(game, operation, data):
+        calls.append(game)
+        if game in unavailable:
+            raise GameUnavailable("test Golf outage")
+        return {"version": 1, "deleted": True, "request_id": data["request_id"]}
+    monkeypatch.setattr("cards_accounts.deletions.call_game", cleanup)
+    assert post(client, "delete", {"password": PASSWORD}).status_code == 202
+    with app.app_context():
+        job = DeletionRequest.query.one()
+        assert db.session.get(User, 42) is not None
+        assert json.loads(job.acknowledgements) == {"hearts": True, "euchre": True}
+        unavailable.clear()
+        assert process_deletion(job.id)
+        assert db.session.get(User, 42) is None
+    assert calls == ["hearts", "euchre", "golf", "golf"]

@@ -1,12 +1,16 @@
 // The optional game targets activate split routing; defaults retain the combined API.
 export function apiDestination(
   incoming,
-  { accounts, hearts = accounts, euchre = accounts, legacy = accounts }
+  { accounts, hearts = accounts, euchre = accounts, golf = null, legacy = accounts }
 ) {
   let target = accounts,
     path;
   const value = incoming.pathname;
-  if (value.startsWith('/api/hearts/')) {
+  if (value.startsWith('/api/golf/') || /^\/golf\/socket\.io\/?$/.test(value)) {
+    if (!golf) return { unavailable: true };
+    target = golf;
+    path = value;
+  } else if (value.startsWith('/api/hearts/')) {
     target = hearts;
     path = value.slice('/api/hearts'.length);
   } else if (value.startsWith('/api/euchre/')) {

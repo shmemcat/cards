@@ -4,11 +4,12 @@ import { pathToFileURL } from 'node:url';
 const components = {
   hearts: ['hearts-game', 'hearts-web'],
   euchre: ['euchre-game', 'euchre-web'],
+  golf: ['golf-game', 'golf-web'],
   cards: ['cards-accounts', 'cards-gateway'],
 };
 
 export function prepareRequest(repo, status, releases) {
-  if (!Object.hasOwn(components, repo)) throw new Error('Select hearts, euchre or cards.');
+  if (!Object.hasOwn(components, repo)) throw new Error('Select hearts, euchre, golf or cards.');
   if (status.pending || !/^[0-9a-f]{64}$/.test(status.generation ?? ''))
     throw new Error('Read a fresh host status without pending recovery.');
   if (!Array.isArray(releases) || releases.length < 1 || releases.length > 2)

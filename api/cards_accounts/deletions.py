@@ -106,7 +106,8 @@ def process_deletion(job_id):
     job = DeletionRequest.query.populate_existing().filter_by(id=job_id).one()
     user_id, acknowledgements = job.user_id, json.loads(job.acknowledgements)
     db.session.commit()
-    for game in ("hearts", "euchre"):
+    games = ("hearts", "euchre", *(["golf"] if "golf" in current_app.config["GAME_SERVICES"] else []))
+    for game in games:
         if acknowledgements.get(game):
             continue
         try:
@@ -145,7 +146,7 @@ def process_deletion(job_id):
         db.session.commit()
         return False
     acknowledgements = json.loads(job.acknowledgements)
-    if all(acknowledgements.get(game) for game in ("hearts", "euchre")):
+    if all(acknowledgements.get(game) for game in games):
         try:
             from cards_accounts.account_sessions import AccountSession
 

@@ -1,11 +1,11 @@
 ---
 name: deploy
-description: Release and deploy all current code in Hearts, Euchre, or Cards, including requests written as /deploy hearts, /deploy euchre, or /deploy cards. Apply to an actual production-release request; setup, release-process discussions, and status checks do not authorize deployment.
+description: Release and deploy all current code in Hearts, Euchre, Golf, or Cards, including requests written as /deploy hearts, /deploy euchre, /deploy golf, or /deploy cards. Apply to an actual production-release request; setup, release-process discussions, and status checks do not authorize deployment.
 ---
 
-# Deploy Hearts, Euchre or Cards
+# Deploy Hearts, Euchre, Golf or Cards
 
-Accept `hearts`, `euchre` or `cards` after `/deploy`, `$deploy`, or an equivalent
+Accept `hearts`, `euchre`, `golf` or `cards` after `/deploy`, `$deploy`, or an equivalent
 release request. Use the named repository's current code, including intended
 uncommitted files and committed changes not yet in production. An invocation is
 authorization to test, fix release-blocking issues within scope, commit, push,
@@ -77,7 +77,7 @@ selection, checks, release artifacts, SSH and the host promotion protocol.
   Stop if recovery fails and report the retained release ID. Do not loop through
   repeated deployments, escalate privileges through another identity, or bypass
   failing checks.
-- Verify all three backends, affected public pages and game transports, and the
+- Verify all enabled backends, affected public pages and game transports, and the
   unchanged peers' container IDs/start times. Use existing sessions only when
   authorized; avoid mail or real-game mutations during smoke checks. Preserve
   the release receipt and previous component pins.

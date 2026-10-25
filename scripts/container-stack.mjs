@@ -41,10 +41,16 @@ export async function startContainerStack({
   prepareDatabase,
   privateData = false,
   cutover,
+  golf,
 } = {}) {
   if (!['public', 'hearts'].includes(databaseSchema))
     throw new Error('Unsupported rehearsal schema');
   if (!build) validatePins(pins || {});
+  if (golf) {
+    for (const [key, repository] of [['game', 'golf-game-api'], ['web', 'golf-web']])
+      assert(new RegExp(`^ghcr\\.io/shmemcat/${repository}@sha256:[a-f0-9]{64}$`).test(golf[key]), 'Golf requires published immutable images');
+    assert(!cutover, 'Golf uses its own initial-activation rehearsal');
+  }
   await mkdir(resolve(root, '.local'), { recursive: true });
   const directory = await mkdtemp(resolve(root, '.local/split-images-'));
   const outbox = resolve(directory, 'outbox');
@@ -84,6 +90,10 @@ export async function startContainerStack({
     SPLIT_EUCHRE_READ: credential(),
     SPLIT_HEARTS_CALLBACK: credential(),
     SPLIT_EUCHRE_CALLBACK: credential(),
+    ...(golf ? {
+      SPLIT_GOLF_READ: credential(), SPLIT_GOLF_CALLBACK: credential(), SPLIT_GOLF_SECRET: credential(),
+      GOLF_IMAGE: golf.game, GOLF_WEB_IMAGE: golf.web, SPLIT_GOLF_DIR: resolve(root, '../golf/deploy'),
+    } : {}),
     ...(cutover
       ? {
           LEGACY_IMAGE: cutover.legacy,
@@ -110,6 +120,7 @@ export async function startContainerStack({
     resolve(root, 'deploy/compose.split.yml'),
     ...(build ? ['-f', resolve(root, 'deploy/compose.split.build.yml')] : []),
     ...(cutover ? ['-f', resolve(root, 'deploy/compose.cutover.yml')] : []),
+    ...(golf ? ['-f', resolve(root, '../golf/deploy/compose.release.yml')] : []),
   ];
   async function command(extra, capture = false) {
     const cleanup = extra[0] === 'down';
@@ -175,7 +186,7 @@ export async function startContainerStack({
     },
     identity: (role) => command(['ps', '-q', role], true),
     async health(role) {
-      const servicePort = role === 'euchre' ? 5002 : 5001;
+      const servicePort = role === 'golf' ? 5003 : role === 'euchre' ? 5002 : 5001;
       const health = JSON.parse(
         await command(
           [
@@ -208,7 +219,7 @@ export async function startContainerStack({
       return health;
     },
     async restart(role) {
-      if (!['accounts', 'hearts', 'euchre', 'gateway'].includes(role))
+      if (!['accounts', 'hearts', 'euchre', 'gateway', ...(golf ? ['golf'] : [])].includes(role))
         throw new Error('Unknown component');
       await command([
         'up',

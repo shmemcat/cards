@@ -3,17 +3,18 @@
 import sys
 
 role, settings_path, operation = sys.argv[1:]
-if role not in {"accounts", "hearts", "euchre"} or operation not in {
+if role not in {"accounts", "hearts", "euchre", "golf"} or operation not in {
     "migrate",
     "serve",
 }:
-    raise SystemExit("Use accounts/hearts/euchre and migrate/serve")
-if role != "accounts":
+    raise SystemExit("Use accounts/hearts/euchre/golf and migrate/serve")
+if role in {"hearts", "euchre"}:
     import eventlet
 
     eventlet.monkey_patch()
 
 import json
+import os
 from pathlib import Path
 import re
 
@@ -32,21 +33,30 @@ if (
 settings = json.loads(settings_file.read_text(encoding="utf-8"))
 if settings.get("version") != 1:
     raise RuntimeError("Unsupported local stack settings")
-database = (directory / "state.sqlite").resolve()
+database = (directory / ("golf.sqlite" if role == "golf" else "state.sqlite")).resolve()
 if database.parent != directory:
     raise RuntimeError("Refusing a database outside the isolated stack directory")
 paths = {
     "accounts": root / "api",
     "hearts": root.parent / "hearts/game-api",
     "euchre": root.parent / "euchre/api",
+    "golf": root.parent / "golf/api",
 }
 sys.path.insert(0, str(paths[role]))
 origin = f"http://localhost:{settings['ports']['gateway']}"
+games = ("hearts", "euchre", "golf") if os.environ.get("CARDS_DEV_GOLF") == "1" else ("hearts", "euchre")
 config = {
     "SQLALCHEMY_DATABASE_URI": "sqlite:///" + database.as_posix(),
     "CARDS_PUBLIC_URL": origin,
     "FRONTEND_URL": origin,
-    "CORS_ORIGINS": [origin, "http://localhost:3001", "http://localhost:3002"],
+    "CORS_ORIGINS": [
+        origin,
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://localhost:3003",
+        "http://127.0.0.1:3003",
+        *json.loads(os.environ.get("CARDS_DEV_WEB_ORIGINS", "[]")),
+    ],
     "COMPONENT_VERSION": "local-split",
     "SOURCE_REVISION": "working-tree",
 }
@@ -68,14 +78,14 @@ if role == "accounts":
                     "token": settings["read"][game],
                     "scopes": ["sessions.validate", "profiles.read"],
                 }
-                for game in ("hearts", "euchre")
+                for game in games
             },
             "GAME_SERVICES": {
                 game: {
                     "url": f"http://127.0.0.1:{settings['ports'][game]}",
                     "token": settings["callbacks"][game],
                 }
-                for game in ("hearts", "euchre")
+                for game in games
             },
             "START_DELETION_WORKER": operation == "serve",
         }
@@ -94,6 +104,7 @@ else:
             "CARDS_SERVICE_ID": role + "-game",
             "CARDS_SERVICE_TOKEN": settings["read"][role],
             "GAME_ACCOUNT_TOKENS": {role: settings["callbacks"][role]},
+            **({"SECRET_KEY": settings["golfSecret"], "START_GOLF_WORKER": operation == "serve"} if role == "golf" else {}),
         }
     )
 
@@ -131,7 +142,10 @@ else:
         original = provider._call
 
         def outside_gate(*args, **kwargs):
-            assert app.extensions["game_account_gate"].owner is None
+            if role != "golf":
+                assert app.extensions["game_account_gate"].owner is None
+            else:
+                assert not app.extensions["golf_runtime"].lock._is_owned()
             return original(*args, **kwargs)
 
         provider._call = outside_gate
@@ -141,6 +155,7 @@ else:
             port=settings["ports"][role],
             use_reloader=False,
             log_output=False,
+            **({"allow_unsafe_werkzeug": True} if role == "golf" else {}),
         )
     else:
         app.run(

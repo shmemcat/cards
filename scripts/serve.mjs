@@ -20,6 +20,7 @@ const apiTargets = {
   accounts: accountApi,
   hearts: new URL(process.env.HEARTS_API_TARGET || accountApi),
   euchre: new URL(process.env.EUCHRE_API_TARGET || accountApi),
+  golf: process.env.GOLF_API_TARGET ? new URL(process.env.GOLF_API_TARGET) : null,
   legacy: process.env.CARDS_DISABLE_LEGACY_SOCKET === '1' ? null : new URL(process.env.CARDS_LEGACY_API_TARGET || accountApi),
 };
 for (const target of Object.values(apiTargets)) {
@@ -27,7 +28,8 @@ for (const target of Object.values(apiTargets)) {
 }
 const targets = {
   hearts: new URL(process.env.HEARTS_LOCAL_URL || 'http://localhost:3001/'),
-  euchre: new URL(process.env.EUCHRE_LOCAL_URL || 'http://localhost:3002/')
+  euchre: new URL(process.env.EUCHRE_LOCAL_URL || 'http://localhost:3002/'),
+  golf: new URL(process.env.GOLF_LOCAL_URL || 'http://localhost:3003/')
 };
 for (const target of Object.values(targets)) {
   if (!['http:', 'https:'].includes(target.protocol)) throw new Error('Game URLs must use HTTP or HTTPS.');
@@ -60,6 +62,10 @@ const server = createServer(async (req, res) => {
     }
   } catch { res.writeHead(404).end('Not found'); return; }
   const destination = apiDestination(incoming);
+  if (destination?.unavailable) {
+    res.writeHead(503, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'Golf is temporarily unavailable. Please try again.' }));
+    return;
+  }
   if (destination?.retired) {
     res.writeHead(426, { 'Content-Type': 'application/json' }).end(JSON.stringify({ code: 'CLIENT_RELOAD_REQUIRED', error: 'Please reload to reconnect.' }));
     return;
@@ -103,7 +109,7 @@ const server = createServer(async (req, res) => {
       res.writeHead(302, { Location: '/user/?' + query.toString(), 'Referrer-Policy': 'no-referrer' }).end();
       return;
     }
-    const game = /^\/(hearts|euchre)(?:\/(.*))?$/.exec(url.pathname);
+    const game = /^\/(hearts|euchre|golf)(?:\/(.*))?$/.exec(url.pathname);
     if (localGames && game) {
       const destination = new URL(targets[game[1]]);
       destination.pathname = destination.pathname.replace(/\/?$/, '/') + (game[2] || '');
@@ -138,11 +144,15 @@ server.on('upgrade', (req, client, head) => {
   let incoming;
   try { incoming = new URL(req.url, 'http://localhost'); }
   catch { client.destroy(); return; }
-  if (!/^\/(?:hearts\/|euchre\/)?socket\.io\/?$/.test(incoming.pathname)) {
+  if (!/^\/(?:hearts\/|euchre\/|golf\/)?socket\.io\/?$/.test(incoming.pathname)) {
     client.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n');
     return;
   }
   const destination = apiDestination(incoming);
+  if (destination?.unavailable) {
+    client.end('HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n');
+    return;
+  }
   if (destination?.retired) {
     client.end('HTTP/1.1 426 Upgrade Required\r\nConnection: close\r\n\r\n');
     return;

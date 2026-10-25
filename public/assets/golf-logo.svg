@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -32 512 544">
+  <g id="golf-mark" fill="none" stroke="currentColor" stroke-width="24" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="256" cy="384" rx="232" ry="104"/>
+    <path d="M152 384V-8L360 96L152 200"/>
+    <ellipse cx="208" cy="384" rx="68" ry="16" fill="currentColor" stroke="none"/>
+  </g>
+</svg>

@@ -7,11 +7,12 @@ import { randomBytes } from 'node:crypto';
 import { startProcess, waitForService } from './service-process.mjs';
 
 export const root = resolve(import.meta.dirname, '..');
-const roles = ['accounts', 'hearts', 'euchre'];
+const baseRoles = ['accounts', 'hearts', 'euchre'];
 const paths = {
   accounts: resolve(root, 'api'),
   hearts: resolve(root, '../hearts/game-api'),
   euchre: resolve(root, '../euchre/api'),
+  golf: resolve(root, '../golf/api'),
 };
 const key = () => randomBytes(40).toString('hex');
 export async function freePort() {
@@ -26,14 +27,15 @@ export function isolatedEnvironment(env = process.env) {
   return Object.fromEntries(
     Object.entries(env).filter(
       ([name]) =>
-        !/^(?:CARDS_|HEARTS_|EUCHRE_|DATABASE_URL$|JWT_SECRET$|SMTP|FLASK_|ADMIN_KEY$|CORS_ORIGINS$|FRONTEND_URL$|PGOPTIONS$)/i.test(
+        !/^(?:CARDS_|HEARTS_|EUCHRE_|GOLF_|DATABASE_URL$|JWT_SECRET$|SMTP|FLASK_|ADMIN_KEY$|CORS_ORIGINS$|FRONTEND_URL$|PGOPTIONS$)/i.test(
           name
         )
     )
   );
 }
 
-export async function stackSettings(directory, requestedPorts) {
+export async function stackSettings(directory, requestedPorts, golf = false) {
+  const roles = [...baseRoles, ...(golf ? ['golf'] : [])];
   const local = resolve(root, '.local');
   const target = resolve(directory);
   if (dirname(target) !== local || !basename(target).startsWith('split-'))
@@ -72,6 +74,15 @@ export async function stackSettings(directory, requestedPorts) {
     ].every((value) => typeof value === 'string' && value.length >= 40)
   )
     throw new Error('Invalid split-stack credentials.');
+  if (golf && !settings.golfSecret) {
+    settings.golfSecret = key();
+    settings.read.golf = key();
+    settings.callbacks.golf = key();
+    settings.ports.golf = requestedPorts?.golf || settings.ports.golf || await freePort();
+    await writeFile(file, JSON.stringify(settings, null, 2) + '\n', { mode: 0o600 });
+  }
+  if (golf && ![settings.golfSecret, settings.read.golf, settings.callbacks.golf].every(value => typeof value === 'string' && value.length >= 40))
+    throw new Error('Invalid Golf service credentials.');
   const ports = ['gateway', ...roles].map((role) => settings.ports?.[role]);
   if (
     !ports.every((port) => Number.isInteger(port) && port > 1023 && port < 65536) ||
@@ -90,9 +101,11 @@ export async function startNativeStack({
   gateway = 'node',
   signal,
   onCreated,
+  golf = false,
 } = {}) {
-  const settings = await stackSettings(directory, ports);
-  for (const port of [...Object.values(settings.ports), ...(web ? Object.values(webPorts) : [])]) {
+  const roles = [...baseRoles, ...(golf ? ['golf'] : [])];
+  const settings = await stackSettings(directory, ports, golf);
+  for (const port of [...['gateway', ...roles].map(role => settings.ports[role]), ...(web ? Object.values(webPorts) : [])]) {
     const listener = createServer();
     try {
       listener.listen(port, '127.0.0.1');
@@ -123,7 +136,16 @@ export async function startNativeStack({
     startProcess(
       executable(role),
       [resolve(root, 'scripts/local-service.py'), role, settings.file, operation],
-      { cwd: paths[role], env, label: role, echo }
+      {
+        cwd: paths[role],
+        env: {
+          ...env,
+          CARDS_DEV_WEB_ORIGINS: JSON.stringify(web ? Object.values(webPorts).map(port => `http://localhost:${port}`) : []),
+          CARDS_DEV_GOLF: golf ? '1' : '0',
+        },
+        label: role,
+        echo,
+      }
     );
   async function start(role) {
     const child = launch(role, 'serve');
@@ -144,7 +166,7 @@ export async function startNativeStack({
       let proxy = await readFile(resolve(root, 'deploy/split/proxy.conf'), 'utf8');
       for (const role of roles)
         proxy = proxy.replaceAll(
-          role + ':' + (role === 'euchre' ? 5002 : 5001),
+          role + ':' + (role === 'golf' ? 5003 : role === 'euchre' ? 5002 : 5001),
           '127.0.0.1:' + settings.ports[role]
         );
       proxy = proxy
@@ -182,6 +204,8 @@ export async function startNativeStack({
           CARDS_API_TARGET: base('accounts'),
           HEARTS_API_TARGET: base('hearts'),
           EUCHRE_API_TARGET: base('euchre'),
+          ...(golf ? { GOLF_API_TARGET: base('golf') } : {}),
+          ...(web ? Object.fromEntries(Object.entries(webPorts).map(([role, port]) => [role.toUpperCase() + '_LOCAL_URL', `http://localhost:${port}/`])) : {}),
           CARDS_DISABLE_LEGACY_SOCKET: '1',
           CARDS_LOCAL_OUTBOX: resolve(settings.directory, 'outbox'),
         },
@@ -237,9 +261,9 @@ export async function startNativeStack({
     signal?.throwIfAborted();
     await startGateway();
     if (web) {
-      for (const role of ['hearts', 'euchre']) {
+      for (const role of ['hearts', 'euchre', ...(webPorts.golf ? ['golf'] : [])]) {
         signal?.throwIfAborted();
-        const cwd = resolve(paths[role], '../web');
+        const cwd = role === 'golf' ? resolve(root, '../golf/web') : resolve(paths[role], '../web');
         const child = startProcess(
           process.execPath,
           [
@@ -262,6 +286,8 @@ export async function startNativeStack({
               ACCOUNT_PROXY_TARGET: base('accounts'),
               HEARTS_API_TARGET: base('hearts'),
               EUCHRE_API_TARGET: base('euchre'),
+              ...(golf ? { GOLF_API_TARGET: base('golf') } : {}),
+              ...(role === 'golf' ? { VITE_CARDS_HOME_URL: base('gateway').replace('127.0.0.1', 'localhost') + '/' } : {}),
             },
             label: role + '-web',
             echo,

@@ -1,7 +1,7 @@
 # Repository and release operations
 
 The Windows workspace contains sibling repositories under
-`D:/My Documents/Code`: `cards`, `hearts`, `euchre`, and `infra`. Locate the same
+`D:/My Documents/Code`: `cards`, `hearts`, `euchre`, `golf`, and `infra`. Locate the same
 siblings from the selected checkout when running elsewhere. Verify remotes:
 application repositories are `github.com/shmemcat/<repo>`; Infra is
 `forge.nuttynet/nuttyverse/infra`, default branch `kernel`.
@@ -12,6 +12,8 @@ application repositories are `github.com/shmemcat/<repo>`; Infra is
 - Hearts frontend: `web/`, `web-v*`, `hearts-cards-web`, record `hearts-web`.
 - Euchre backend: `api/`, `game-v*`, `euchre-game-api`, record `euchre-game`.
 - Euchre frontend: `web/`, `web-v*`, `euchre-web`, record `euchre-web`.
+- Golf backend: `api/`, `game-v*`, `golf-game-api`, record `golf-game`.
+- Golf frontend: `web/`, `web-v*`, `golf-web`, record `golf-web`.
 - Cards accounts: `api/`, `accounts-v*`, `cards-accounts-api`, record `cards-accounts`.
 - Cards hub/gateway: web assets, `scripts/build.mjs`, `scripts/serve.mjs`,
   `deploy/Dockerfile` and relevant gateway inputs; `gateway-v*`, `cards-web`,
@@ -62,7 +64,7 @@ host-key file and the user's SSH identity. Reuse it when present; otherwise read
 Infra's `docs/deployment.md` and the user's configured `nuttybox` alias. Never
 disable host-key checking or copy a private key into a repository.
 
-The reviewed host command is `sudo -n cards-release`. Its status reports six
+The reviewed host command is `sudo -n cards-release`. Its status reports all enabled
 exact image pins, component release metadata, a generation and pending-recovery
 status. For bootstrap entries without release metadata, inspect the pinned
 image's OCI source/version labels and verify them against the app repository.
@@ -75,7 +77,7 @@ image's OCI source/version labels and verify them against the app repository.
 3. Send that request over SSH stdin to `sudo -n cards-release plan`, then
    `sudo -n cards-release promote`. Retain the returned `releaseId` and generation.
 4. Run `sudo -n cards-release verify` and inspect status. Check affected public
-   pages/assets and game transports, and all three backend health/readiness
+   pages/assets and game transports, and all enabled backend health/readiness
    endpoints using existing read-only probes. Verify unaffected containers kept
    their IDs and start times.
 
@@ -93,3 +95,21 @@ Read Infra's `docs/cards-releases.md` for activation, migration limits and
 operational recovery. A deployment request does not authorize initial activation
 of an unreviewed host capability, credential retirement, a destructive schema
 change or restoration over subsequent production writes.
+
+## Golf
+
+Golf uses the same release journal, readiness checks and rollback as the other
+games, with no moving-image updater. Use `/deploy golf` to publish and promote
+its affected game/web components. Run `npm test`, `npm run build`,
+`npm run test:api`, `npm run test:release`, `npm run test:online` and
+`npm run test:accounts` for its initial release or relevant boundary changes.
+For pinned production-image rehearsal, run Golf's `scripts/rehearse-release.mjs`
+with the fresh host status and candidate records; it checks the actual published
+Golf images, gateway routes, shared login, both socket transports and deletion
+using disposable PostgreSQL data. Keep the existing Cards peer rehearsal too
+when releasing Cards accounts or gateway changes.
+
+Golf must first be present in the reviewed host policy with its tables migrated
+and separately scoped account credentials installed. If `status.images.golf` or
+`status.images['golf-web']` is absent, finish publication and report the pending
+one-time Infra activation. Never edit live policy or switch an unreviewed PR.

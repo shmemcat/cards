@@ -39,6 +39,19 @@ test('split routes preserve aliases and queries while explicit combined routing 
   assert(apiDestination(new URL('http://localhost/socket.io/'), split).retired);
 });
 
+test('Golf keeps its own API prefix and socket path and never falls back to another game', () => {
+  const accounts = new URL('http://accounts.invalid:5001');
+  const golf = new URL('http://golf.invalid:5003');
+  for (const path of ['/api/golf/stats', '/api/golf/rooms/ABC123', '/golf/socket.io/', '/golf/socket.io']) {
+    const incoming = new URL(path + '?EIO=4&transport=polling', 'http://localhost');
+    const selected = apiDestination(incoming, { accounts, golf });
+    assert.equal(selected.host, golf.host);
+    assert.equal(selected.pathname, path);
+    assert.equal(selected.search, incoming.search);
+    assert(apiDestination(incoming, { accounts }).unavailable);
+  }
+});
+
 test('split configuration rejects inherited database and service secrets', async () => {
   const clean = isolatedEnvironment({
     PATH: 'keep',

@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { root, startNativeStack } from './split-stack.mjs';
 
 let stack,
@@ -15,8 +16,14 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => void clos
 try {
   stack = await startNativeStack({
     directory: resolve(root, '.local/split-dev'),
-    ports: { gateway: 3000, accounts: 5100, hearts: 5101, euchre: 5102 },
+    ports: { gateway: 3000, accounts: 5100, hearts: 5101, euchre: 5102, golf: 5103 },
+    golf: existsSync(resolve(root, '../golf/api/pyproject.toml')),
     web: true,
+    webPorts: {
+      hearts: 3001,
+      euchre: 3002,
+      ...(existsSync(resolve(root, '../golf/web/package.json')) ? { golf: 3003 } : {}),
+    },
     echo: true,
     signal: controller.signal,
     onCreated: (value) => {
