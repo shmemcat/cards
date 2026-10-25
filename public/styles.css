@@ -6,6 +6,13 @@
   font-display: swap;
 }
 @font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces-Variable.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: "Terminal Dosis";
   src: url("/assets/fonts/TerminalDosis-Regular.ttf") format("truetype");
   font-weight: 400;
@@ -265,7 +272,7 @@ h2 {
   line-height: 1.2;
 }
 .game-hearts h2 { letter-spacing: 11px; text-indent: 11px; }
-.game-euchre h2 { font-weight: 700; }
+.game-euchre h2, .game-golf h2 { font-weight: 700; }
 .play-button {
   position: relative;
   display: flex;
@@ -284,7 +291,15 @@ h2 {
   letter-spacing: 5px;
   text-indent: 5px;
 }
-.game-euchre .play-button { font-size: 16px; font-weight: 800; letter-spacing: 1px; text-indent: 1px; }
+.game-euchre .play-button, .game-golf .play-button {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-indent: 0;
+  text-transform: none;
+}
+.game-euchre .play-button { font-variant-caps: small-caps; }
+.game-golf .play-button { font-weight: 700; }
 .button-shine {
   position: absolute;
   top: 2.5px;
@@ -379,21 +394,25 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
 }
 
 .game-golf {
-  --game-panel: #263d36;
-  --game-text: #e8eddc;
-  --game-logo: #53796a;
-  --game-button: #a5c8aa;
-  --game-button-hover: #86ae92;
-  --game-button-text: #243d32;
-  --game-button-shadow: #456c5859;
-  --game-button-shadow-hover: #34534366;
-  --game-shine: #dcebd8;
-  --game-shine-hover: #c3d9bf;
+  --game-font: "Fraunces", Georgia, serif;
+  --game-panel: #344c40;
+  --game-text: #f0eee1;
+  --game-logo: #7c9885;
+  --game-button: #cf9f9c;
+  --game-button-hover: #ddb0a8;
+  --game-button-text: #293f35;
+  --game-button-shadow: #593b3b55;
+  --game-button-shadow-hover: #78505455;
+  --game-shine: #f4d6cb;
+  --game-shine-hover: #f7ded4;
 }
 [data-theme="light"] .game-golf {
-  --game-panel: #e9eee2;
-  --game-text: #2e4b3e;
-  --game-logo: #cad9bf;
+  --game-panel: #f0f3e9;
+  --game-text: #304339;
+  --game-logo: #a8bea4;
+  --game-button-hover: #bd8b88;
+  --game-button-shadow: #885a6045;
+  --game-shine-hover: #e4b4ad;
 }
 .game-golf .game-logo { --game-mask: url("/assets/golf-logo.svg"); }
 @media (min-width: 641px) and (max-width: 900px) {
