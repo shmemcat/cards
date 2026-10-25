@@ -101,6 +101,8 @@ a:focus-visible, button:focus-visible {
   flex-direction: column;
 }
 .hub, .account-page { animation: page-enter 0.25s ease-out; }
+.fonts-loading body { visibility: hidden; }
+.fonts-loading .hub { animation: none; }
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }

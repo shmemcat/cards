@@ -25,8 +25,28 @@
     <meta name="twitter:image:alt" content="Cards, with the Hearts and Euchre logos and names side by side on a dark background.">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="preload" href="/assets/fonts/EBGaramond-Variable.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/assets/fonts/TerminalDosis-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/assets/fonts/Fraunces-Variable.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="stylesheet" href="/styles.css">
     <script src="/theme.js"></script>
+    <script>
+      (() => {
+        if (!document.fonts) return;
+        const root = document.documentElement;
+        root.classList.add('fonts-loading');
+        const reveal = () => {
+          clearTimeout(timeout);
+          root.classList.remove('fonts-loading');
+        };
+        // Keep the page usable if a font download stalls or fails.
+        const timeout = setTimeout(reveal, 3000);
+        Promise.allSettled([
+          document.fonts.load('700 1em "EB Garamond"'),
+          document.fonts.load('900 1em "Terminal Dosis"'),
+          document.fonts.load('700 1em "Fraunces"'),
+        ]).then(reveal);
+      })();
+    </script>
     <script src="/app.js" defer></script>
   </head>
   <body>
