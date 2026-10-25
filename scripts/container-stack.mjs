@@ -93,6 +93,7 @@ export async function startContainerStack({
     ...(golf ? {
       SPLIT_GOLF_READ: credential(), SPLIT_GOLF_CALLBACK: credential(), SPLIT_GOLF_SECRET: credential(),
       GOLF_IMAGE: golf.game, GOLF_WEB_IMAGE: golf.web, SPLIT_GOLF_DIR: resolve(root, '../golf/deploy'),
+      SPLIT_GOLF_PROXY_FILE: resolve(golf.proxyFile || resolve(root, '../infra/nuttybox/containers/cards-split/proxy.conf')),
     } : {}),
     ...(cutover
       ? {

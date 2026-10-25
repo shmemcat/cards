@@ -109,6 +109,10 @@ Golf images, gateway routes, shared login, both socket transports and deletion
 using disposable PostgreSQL data. Keep the existing Cards peer rehearsal too
 when releasing Cards accounts or gateway changes.
 
+Golf's image rehearsal mounts the sibling Infra checkout's production
+`nuttybox/containers/cards-split/proxy.conf`. Refresh Infra's main branch before
+rehearsal so it tests the file that will actually be mounted on the host.
+
 Golf must first be present in the reviewed host policy with its tables migrated
 and separately scoped account credentials installed. If `status.images.golf` or
 `status.images['golf-web']` is absent, finish publication and report the pending
