@@ -2,6 +2,6 @@
   "component": "cards-accounts",
   "image": "ghcr.io/shmemcat/cards-accounts-api",
   "tagPrefix": "accounts-v",
-  "schemaRevision": "accounts_003",
+  "schemaRevision": "accounts_004",
   "package": "cards_accounts"
 }

@@ -22,11 +22,15 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
+        card_backs = {"golf": "argyle"}
         turn_sound = dict.fromkeys(("golf", "euchre", "hearts"), False)
         turn_sound_options = {
             game: {"sound": "pop", "volume": 0.15} for game in turn_sound
         }
         inspector = inspect(db.engine)
+        if inspector.has_table("account_card_backs"):
+            for choice in CardBackOption.query.filter_by(user_id=self.id):
+                card_backs[choice.game] = choice.design
         if inspector.has_table("account_turn_sound_options"):
             # Explicit columns keep existing sessions usable before accounts_003.
             columns = {
@@ -56,6 +60,7 @@ class User(db.Model):
             "profile_icon": self.profile_icon,
             "turn_sound": turn_sound,
             "turn_sound_options": turn_sound_options,
+            "card_backs": card_backs,
             "preferences": profile_preferences(self.id),
             "preferences_available": preferences_available(self.id),
         }
@@ -83,6 +88,18 @@ class TurnSoundOption(db.Model):
     volume = db.Column(db.Float, nullable=False, default=0.15, server_default="0.15")
     user = db.relationship(
         "User", backref=db.backref("turn_sound_options", lazy="select")
+    )
+
+
+class CardBackOption(db.Model):
+    __tablename__ = "account_card_backs"
+
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    game = db.Column(db.String(16), primary_key=True)
+    design = db.Column(
+        db.String(64), nullable=False, default="argyle", server_default="argyle"
     )
 
 

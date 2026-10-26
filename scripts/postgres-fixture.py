@@ -168,6 +168,7 @@ def privileges():
             "account_deletion_requests",
             "account_id_sequence",
             "account_turn_sound_options",
+            "account_card_backs",
         },
         "hearts_runtime": {
             "active_games",

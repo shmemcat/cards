@@ -9,7 +9,8 @@ explicit `accounts-vX.Y.Z` tag. There is no moving `latest` account tag.
 ## Ownership
 
 Accounts owns `users`, `account_sessions`, `password_reset_tokens`,
-`account_deletion_requests`, `account_id_sequence`, `account_turn_sound_options`, and
+`account_deletion_requests`, `account_id_sequence`, `account_turn_sound_options`,
+`account_card_backs`, and
 `cards_accounts_alembic_version`. Only accounts receives the existing JWT signing
 secret, password hashes, recovery/session credentials, and mail credentials.
 It imports no Hearts package and registers no game routes or sockets.
@@ -43,6 +44,20 @@ the schema owner. Existing sessions and enabled-only profile edits remain usable
 before migration; new sound/volume writes return a temporary update error.
 Existing table grants cover the new columns. Promote the final `accounts_003`
 image before releasing these frontend controls. Runtime credentials never migrate.
+
+`accounts_004` adds `account_card_backs`, keyed by account and game. Sessions
+include `user.card_backs.golf`, defaulting to `argyle`. Save an approved design
+through `POST /account/profile` with
+`{"card_back":{"game":"golf","design":"ginkgo"}}`. Choices follow the account
+across sessions and devices, remain isolated from guests and other accounts, and
+are removed by account deletion. The frontend uses the profile as its source of
+truth rather than a device preference.
+
+The compatible account server remains ready on `accounts_003`; existing sessions
+and other profile edits work before the new table is present. Card-back writes
+return 503 until migration. Before releasing the Golf chooser, back up, explicitly
+apply `accounts_004` as the schema owner, and apply the updated grants in
+`deploy/split/grants.sql` for the new owned table. Runtime startup never migrates.
 
 Hearts retains `active_games`, `user_stats`, `difficulty_stats`, `game_results`,
 and `user_preferences`. Euchre retains `euchre_tables` and

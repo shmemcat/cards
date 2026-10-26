@@ -4,6 +4,11 @@ DO $$ BEGIN
   EXECUTE format('GRANT USAGE ON SCHEMA %I TO accounts_runtime, hearts_runtime, euchre_runtime', current_schema());
 END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON users, account_sessions, password_reset_tokens, account_deletion_requests, account_id_sequence, account_turn_sound_options TO accounts_runtime;
+DO $$ BEGIN
+  IF to_regclass('account_card_backs') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON account_card_backs TO accounts_runtime;
+  END IF;
+END $$;
 GRANT SELECT ON cards_accounts_alembic_version TO accounts_runtime;
 GRANT SELECT, INSERT, UPDATE, DELETE ON active_games, user_stats, user_preferences, difficulty_stats, game_results, hearts_account_deletions TO hearts_runtime;
 GRANT SELECT ON hearts_alembic_version, hearts_account_schema_version TO hearts_runtime;

@@ -13,7 +13,12 @@ from cards_accounts.account_contracts import DeletionResult
 from cards_accounts.auth_utils import verify_password
 from cards_accounts.extensions import db
 from cards_accounts.game_client import call_game, GameUnavailable
-from cards_accounts.models import User, PasswordResetToken, TurnSoundOption
+from cards_accounts.models import (
+    User,
+    PasswordResetToken,
+    TurnSoundOption,
+    CardBackOption,
+)
 
 
 class DeletionRequest(db.Model):
@@ -164,6 +169,10 @@ def process_deletion(job_id):
             )
             if inspect(db.engine).has_table("account_turn_sound_options"):
                 TurnSoundOption.query.filter_by(user_id=user_id).delete(
+                    synchronize_session=False
+                )
+            if inspect(db.engine).has_table("account_card_backs"):
+                CardBackOption.query.filter_by(user_id=user_id).delete(
                     synchronize_session=False
                 )
             User.query.filter_by(id=user_id).delete(synchronize_session="fetch")

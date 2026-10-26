@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cards_accounts.extensions import db
 
-REVISION = "accounts_003"
+REVISION = "accounts_004"
 
 
 def schema_ready():
@@ -41,7 +41,11 @@ def schema_ready():
             column["name"]
             for column in inspector.get_columns("account_turn_sound_options")
         }
-        return revision == REVISION and {"sound", "volume"} <= columns
+        if not {"sound", "volume"} <= columns:
+            return False
+        if revision == "accounts_003":
+            return True
+        return revision == REVISION and inspector.has_table("account_card_backs")
     except SQLAlchemyError:
         db.session.rollback()
         return False

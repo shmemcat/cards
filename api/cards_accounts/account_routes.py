@@ -35,7 +35,8 @@ from cards_accounts.email_templates import (
 )
 from cards_accounts.email_utils import _send, hash_token
 from cards_accounts.extensions import db, limiter
-from cards_accounts.models import PasswordResetToken, User
+from cards_accounts.models import CardBackOption, PasswordResetToken, User
+from cards_accounts.card_backs import CARD_BACK_DESIGNS
 from cards_accounts.account_security import change_email, reset_password_with_token
 
 account_bp = Blueprint("cards_account", __name__, url_prefix="/account")
@@ -158,8 +159,26 @@ def update_account_profile():
     if not user:
         return jsonify(error="Sign in to customize your profile."), 401
     data = body()
-    if not any(key in data for key in ("profile_icon", "email", "turn_sound")):
+    if not any(
+        key in data for key in ("profile_icon", "email", "turn_sound", "card_back")
+    ):
         return jsonify(error="No changes provided."), 400
+    card_back = data.get("card_back")
+    if "card_back" in data and (
+        not isinstance(card_back, dict)
+        or set(card_back) != {"game", "design"}
+        or not isinstance(card_back.get("game"), str)
+        or not isinstance(card_back.get("design"), str)
+        or card_back["design"] not in CARD_BACK_DESIGNS.get(card_back["game"], ())
+    ):
+        return jsonify(error="Choose a valid card back."), 400
+    if card_back is not None and not inspect(db.engine).has_table("account_card_backs"):
+        return (
+            jsonify(
+                error="Card back settings are being updated. Please try again shortly."
+            ),
+            503,
+        )
     turn_sound = data.get("turn_sound")
     if "turn_sound" in data and (
         not isinstance(turn_sound, dict)
@@ -196,6 +215,13 @@ def update_account_profile():
     email_changed = "email" in data and email != user.email
     if "profile_icon" in data:
         user.profile_icon = icon
+    if card_back is not None:
+        User.query.filter_by(id=user.id).with_for_update().one()
+        choice = db.session.get(CardBackOption, (user.id, card_back["game"]))
+        if choice is None:
+            choice = CardBackOption(user_id=user.id, game=card_back["game"])
+            db.session.add(choice)
+        choice.design = card_back["design"]
     if turn_sound is not None:
         inspector = inspect(db.engine)
         table_available = inspector.has_table("account_turn_sound_options")
