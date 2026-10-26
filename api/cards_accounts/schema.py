@@ -41,7 +41,8 @@ def schema_ready():
             column["name"]
             for column in inspector.get_columns("account_turn_sound_options")
         }
-        return revision == REVISION and {"sound", "volume"} <= columns
+        return (revision in (REVISION, "accounts_004") and {"sound", "volume"} <= columns
+                and (revision != "accounts_004" or inspector.has_table("account_card_backs")))
     except SQLAlchemyError:
         db.session.rollback()
         return False
