@@ -16,13 +16,15 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => void clos
 try {
   stack = await startNativeStack({
     directory: resolve(root, '.local/split-dev'),
-    ports: { gateway: 3000, accounts: 5100, hearts: 5101, euchre: 5102, golf: 5103 },
+    ports: { gateway: 3000, accounts: 5100, hearts: 5101, euchre: 5102, golf: 5103, handandfoot: 5104 },
     golf: existsSync(resolve(root, '../golf/api/pyproject.toml')),
+    handandfoot: existsSync(resolve(root, '../handandfoot/api/pyproject.toml')),
     web: true,
     webPorts: {
       hearts: 3001,
       euchre: 3002,
       ...(existsSync(resolve(root, '../golf/web/package.json')) ? { golf: 3003 } : {}),
+      ...(existsSync(resolve(root, '../handandfoot/web/package.json')) ? { handandfoot: 3004 } : {}),
     },
     echo: true,
     signal: controller.signal,

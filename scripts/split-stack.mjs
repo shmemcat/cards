@@ -13,6 +13,7 @@ const paths = {
   hearts: resolve(root, '../hearts/game-api'),
   euchre: resolve(root, '../euchre/api'),
   golf: resolve(root, '../golf/api'),
+  handandfoot: resolve(root, '../handandfoot/api'),
 };
 const key = () => randomBytes(40).toString('hex');
 export async function freePort() {
@@ -27,15 +28,15 @@ export function isolatedEnvironment(env = process.env) {
   return Object.fromEntries(
     Object.entries(env).filter(
       ([name]) =>
-        !/^(?:CARDS_|HEARTS_|EUCHRE_|GOLF_|DATABASE_URL$|JWT_SECRET$|SMTP|FLASK_|ADMIN_KEY$|CORS_ORIGINS$|FRONTEND_URL$|PGOPTIONS$)/i.test(
+        !/^(?:CARDS_|HEARTS_|EUCHRE_|GOLF_|HANDANDFOOT_|DATABASE_URL$|JWT_SECRET$|SMTP|FLASK_|ADMIN_KEY$|CORS_ORIGINS$|FRONTEND_URL$|PGOPTIONS$)/i.test(
           name
         )
     )
   );
 }
 
-export async function stackSettings(directory, requestedPorts, golf = false) {
-  const roles = [...baseRoles, ...(golf ? ['golf'] : [])];
+export async function stackSettings(directory, requestedPorts, golf = false, handandfoot = false) {
+  const roles = [...baseRoles, ...(golf ? ['golf'] : []), ...(handandfoot ? ['handandfoot'] : [])];
   const local = resolve(root, '.local');
   const target = resolve(directory);
   if (dirname(target) !== local || !basename(target).startsWith('split-'))
@@ -83,6 +84,15 @@ export async function stackSettings(directory, requestedPorts, golf = false) {
   }
   if (golf && ![settings.golfSecret, settings.read.golf, settings.callbacks.golf].every(value => typeof value === 'string' && value.length >= 40))
     throw new Error('Invalid Golf service credentials.');
+  if (handandfoot && !settings.handandfootSecret) {
+    settings.handandfootSecret = key();
+    settings.read.handandfoot = key();
+    settings.callbacks.handandfoot = key();
+    settings.ports.handandfoot = requestedPorts?.handandfoot || settings.ports.handandfoot || await freePort();
+    await writeFile(file, JSON.stringify(settings, null, 2) + '\n', { mode: 0o600 });
+  }
+  if (handandfoot && ![settings.handandfootSecret, settings.read.handandfoot, settings.callbacks.handandfoot].every(value => typeof value === 'string' && value.length >= 40))
+    throw new Error('Invalid Hand & Foot service credentials.');
   const ports = ['gateway', ...roles].map((role) => settings.ports?.[role]);
   if (
     !ports.every((port) => Number.isInteger(port) && port > 1023 && port < 65536) ||
@@ -102,9 +112,10 @@ export async function startNativeStack({
   signal,
   onCreated,
   golf = false,
+  handandfoot = false,
 } = {}) {
-  const roles = [...baseRoles, ...(golf ? ['golf'] : [])];
-  const settings = await stackSettings(directory, ports, golf);
+  const roles = [...baseRoles, ...(golf ? ['golf'] : []), ...(handandfoot ? ['handandfoot'] : [])];
+  const settings = await stackSettings(directory, ports, golf, handandfoot);
   for (const port of [...['gateway', ...roles].map(role => settings.ports[role]), ...(web ? Object.values(webPorts) : [])]) {
     const listener = createServer();
     try {
@@ -140,8 +151,9 @@ export async function startNativeStack({
         cwd: paths[role],
         env: {
           ...env,
-          CARDS_DEV_WEB_ORIGINS: JSON.stringify(web ? Object.values(webPorts).map(port => `http://localhost:${port}`) : []),
+          CARDS_DEV_WEB_ORIGINS: JSON.stringify(web ? Object.values(webPorts).flatMap(port => ['localhost', '127.0.0.1'].map(host => `http://${host}:${port}`)) : []),
           CARDS_DEV_GOLF: golf ? '1' : '0',
+          CARDS_DEV_HANDANDFOOT: handandfoot ? '1' : '0',
         },
         label: role,
         echo,
@@ -205,6 +217,7 @@ export async function startNativeStack({
           HEARTS_API_TARGET: base('hearts'),
           EUCHRE_API_TARGET: base('euchre'),
           ...(golf ? { GOLF_API_TARGET: base('golf') } : {}),
+          ...(handandfoot ? { HANDANDFOOT_API_TARGET: base('handandfoot') } : {}),
           ...(web ? Object.fromEntries(Object.entries(webPorts).map(([role, port]) => [role.toUpperCase() + '_LOCAL_URL', `http://localhost:${port}/`])) : {}),
           CARDS_DISABLE_LEGACY_SOCKET: '1',
           CARDS_LOCAL_OUTBOX: resolve(settings.directory, 'outbox'),
@@ -261,13 +274,13 @@ export async function startNativeStack({
     signal?.throwIfAborted();
     await startGateway();
     if (web) {
-      for (const role of ['hearts', 'euchre', ...(webPorts.golf ? ['golf'] : [])]) {
+      for (const role of Object.keys(webPorts)) {
         signal?.throwIfAborted();
-        const cwd = role === 'golf' ? resolve(root, '../golf/web') : resolve(paths[role], '../web');
+        const cwd = resolve(paths[role], '../web');
         const child = startProcess(
           process.execPath,
           [
-            resolve(cwd, 'node_modules/vite/bin/vite.js'),
+            resolve(role === 'handandfoot' ? resolve(cwd, '..') : cwd, 'node_modules/vite/bin/vite.js'),
             '--host',
             '127.0.0.1',
             '--port',
@@ -287,7 +300,8 @@ export async function startNativeStack({
               HEARTS_API_TARGET: base('hearts'),
               EUCHRE_API_TARGET: base('euchre'),
               ...(golf ? { GOLF_API_TARGET: base('golf') } : {}),
-              ...(role === 'golf' ? { VITE_CARDS_HOME_URL: base('gateway').replace('127.0.0.1', 'localhost') + '/' } : {}),
+              ...(handandfoot ? { HANDANDFOOT_API_TARGET: base('handandfoot') } : {}),
+              ...(['golf', 'handandfoot'].includes(role) ? { VITE_CARDS_HOME_URL: base('gateway').replace('127.0.0.1', 'localhost') + '/' } : {}),
             },
             label: role + '-web',
             echo,

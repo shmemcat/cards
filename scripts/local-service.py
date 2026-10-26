@@ -3,7 +3,7 @@
 import sys
 
 role, settings_path, operation = sys.argv[1:]
-if role not in {"accounts", "hearts", "euchre", "golf"} or operation not in {
+if role not in {"accounts", "hearts", "euchre", "golf", "handandfoot"} or operation not in {
     "migrate",
     "serve",
 }:
@@ -33,7 +33,7 @@ if (
 settings = json.loads(settings_file.read_text(encoding="utf-8"))
 if settings.get("version") != 1:
     raise RuntimeError("Unsupported local stack settings")
-database = (directory / ("golf.sqlite" if role == "golf" else "state.sqlite")).resolve()
+database = (directory / (role + ".sqlite" if role in {"golf", "handandfoot"} else "state.sqlite")).resolve()
 if database.parent != directory:
     raise RuntimeError("Refusing a database outside the isolated stack directory")
 paths = {
@@ -41,10 +41,13 @@ paths = {
     "hearts": root.parent / "hearts/game-api",
     "euchre": root.parent / "euchre/api",
     "golf": root.parent / "golf/api",
+    "handandfoot": root.parent / "handandfoot/api",
 }
 sys.path.insert(0, str(paths[role]))
 origin = f"http://localhost:{settings['ports']['gateway']}"
 games = ("hearts", "euchre", "golf") if os.environ.get("CARDS_DEV_GOLF") == "1" else ("hearts", "euchre")
+if os.environ.get("CARDS_DEV_HANDANDFOOT") == "1":
+    games += ("handandfoot",)
 config = {
     "SQLALCHEMY_DATABASE_URI": "sqlite:///" + database.as_posix(),
     "CARDS_PUBLIC_URL": origin,
@@ -95,8 +98,8 @@ else:
 
     package = role + "_server"
     create_app = importlib.import_module(package).create_app
-    db = importlib.import_module(package + ".extensions").db
-    upgrade_schema = importlib.import_module(package + ".schema").upgrade_schema
+    db = importlib.import_module(package + (".models" if role == "handandfoot" else ".extensions")).db
+    upgrade_schema = db.create_all if role == "handandfoot" else importlib.import_module(package + ".schema").upgrade_schema
     app = create_app(
         {
             **config,
@@ -105,6 +108,9 @@ else:
             "CARDS_SERVICE_TOKEN": settings["read"][role],
             "GAME_ACCOUNT_TOKENS": {role: settings["callbacks"][role]},
             **({"SECRET_KEY": settings["golfSecret"], "START_GOLF_WORKER": operation == "serve"} if role == "golf" else {}),
+            **({"SECRET_KEY": settings["handandfootSecret"], "START_WORKER": operation == "serve",
+                "DEVELOPMENT_FIXTURES": True, "CARDS_COOKIE_SECURE": False,
+                "ALLOWED_ORIGINS": config["CORS_ORIGINS"]} if role == "handandfoot" else {}),
         }
     )
 
@@ -142,7 +148,9 @@ else:
         original = provider._call
 
         def outside_gate(*args, **kwargs):
-            if role != "golf":
+            if role == "handandfoot":
+                assert not app.extensions["room_lock"]._is_owned()
+            elif role != "golf":
                 assert app.extensions["game_account_gate"].owner is None
             else:
                 assert not app.extensions["golf_runtime"].lock._is_owned()
@@ -155,7 +163,7 @@ else:
             port=settings["ports"][role],
             use_reloader=False,
             log_output=False,
-            **({"allow_unsafe_werkzeug": True} if role == "golf" else {}),
+            **({"allow_unsafe_werkzeug": True} if role in {"golf", "handandfoot"} else {}),
         )
     else:
         app.run(

@@ -52,6 +52,19 @@ test('Golf keeps its own API prefix and socket path and never falls back to anot
   }
 });
 
+test('Hand & Foot routes only to its own host and preserves socket queries', () => {
+  const accounts = new URL('http://accounts.invalid:5001');
+  const handandfoot = new URL('http://handandfoot.invalid:5104');
+  for (const path of ['/api/hand-and-foot/session', '/api/hand-and-foot/rooms/ABCDEF', '/hand-and-foot/socket.io/']) {
+    const incoming = new URL(path + '?EIO=4&transport=polling', 'http://localhost');
+    const destination = apiDestination(incoming, { accounts, handandfoot });
+    assert.equal(destination.host, handandfoot.host);
+    assert.equal(destination.pathname, path);
+    assert.equal(destination.search, incoming.search);
+    assert(apiDestination(incoming, { accounts }).unavailable);
+  }
+});
+
 test('split configuration rejects inherited database and service secrets', async () => {
   const clean = isolatedEnvironment({
     PATH: 'keep',

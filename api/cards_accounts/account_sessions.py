@@ -88,7 +88,7 @@ def valid_origin():
         allowed.update(
             f"http://{host}:{port}"
             for host in ("localhost", "127.0.0.1")
-            for port in (3000, 3001, 3002, 3003)
+            for port in (3000, 3001, 3002, 3003, 3004)
         )
         # Disposable development stacks use explicitly configured loopback ports.
         origins = current_app.config.get("CORS_ORIGINS", [])

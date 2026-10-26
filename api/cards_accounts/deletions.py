@@ -111,6 +111,7 @@ def process_deletion(job_id):
         "hearts",
         "euchre",
         *(["golf"] if "golf" in current_app.config["GAME_SERVICES"] else []),
+        *(["handandfoot"] if "handandfoot" in current_app.config["GAME_SERVICES"] else []),
     )
     for game in games:
         if acknowledgements.get(game):
