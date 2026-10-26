@@ -32,7 +32,7 @@ Game authentication, HTTP cookie guards, Euchre handshake and command validation
 
 The contract uses immutable records:
 
-- `AccountIdentity`: integer `id`, `username`, `profile_icon`, and `email_verified`. Existing integer IDs are preserved. This record contains no email address, password hash, verification/recovery token, or ORM object.
+- `AccountIdentity`: integer `id`, `username`, `profile_icon`, and `email_verified`, with additive `golf_card_back` defaulting to `argyle`. Existing integer IDs are preserved. The selected Golf design is public appearance metadata; the viewer's display preference stays private. This record contains no email address, password hash, verification/recovery token, or ORM object.
 - `AccountSession`: `csrf_token`, available only inside the server boundary. This is distinct from the database session model and is never a raw session cookie.
 - `DeletionResult`: `deleted`, `message`, and HTTP-compatible `status_code` for the existing account route response.
 

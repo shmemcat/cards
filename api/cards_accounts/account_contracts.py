@@ -16,6 +16,7 @@ class AccountIdentity:
     username: str
     profile_icon: str
     email_verified: bool
+    golf_card_back: str = "argyle"
 
 
 @dataclass(frozen=True)

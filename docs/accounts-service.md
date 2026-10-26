@@ -59,6 +59,25 @@ return 503 until migration. Before releasing the Golf chooser, back up, explicit
 apply `accounts_004` as the schema owner, and apply the updated grants in
 `deploy/split/grants.sql` for the new owned table. Runtime startup never migrates.
 
+`accounts_005` adds `display_mode` to that table, defaulting to `uniform`.
+Sessions include the private preference `user.card_back_display.golf`. Submit
+`{"card_back":{"game":"golf","display":"players"}}` to see each player's
+chosen back, or `uniform` to use the viewer's selected back throughout the site.
+`design` and `display` can be updated separately or atomically without resetting
+the other choice. The compatible server continues to read and save designs on
+`accounts_004`; display changes return 503 until the explicit migration runs.
+Existing table grants cover the new column. Apply `accounts_005` before releasing
+the display controls; runtime startup never migrates.
+
+Private v1 identities add `golf_card_back` (default `argyle`) so Golf can include
+each seat's public `cardBack` in room snapshots. The viewer's display preference
+is not shared with other players. Room refreshes, subscriptions and actions adopt
+the acting player's latest profile design and broadcast appearance changes.
+Golf validates older identities without the new field as Argyle. Uniform mode
+uses the viewer's own back on all boards; individual mode uses each board owner's
+design. Shared deck cards retain the viewer's back, and bots/guests default to
+Argyle. Card flips and flights follow the same choice as the corresponding board.
+
 Hearts retains `active_games`, `user_stats`, `difficulty_stats`, `game_results`,
 and `user_preferences`. Euchre retains `euchre_tables` and
 `euchre_game_results`. Their supplemental deletion receipts/version tables are

@@ -35,7 +35,7 @@ from cards_accounts.email_templates import (
 )
 from cards_accounts.email_utils import _send, hash_token
 from cards_accounts.extensions import db, limiter
-from cards_accounts.models import CardBackOption, PasswordResetToken, User
+from cards_accounts.models import PasswordResetToken, User
 from cards_accounts.card_backs import CARD_BACK_DESIGNS
 from cards_accounts.account_security import change_email, reset_password_with_token
 
@@ -166,13 +166,35 @@ def update_account_profile():
     card_back = data.get("card_back")
     if "card_back" in data and (
         not isinstance(card_back, dict)
-        or set(card_back) != {"game", "design"}
+        or not ({"design", "display"} & card_back.keys())
+        or bool(card_back.keys() - {"game", "design", "display"})
         or not isinstance(card_back.get("game"), str)
-        or not isinstance(card_back.get("design"), str)
-        or card_back["design"] not in CARD_BACK_DESIGNS.get(card_back["game"], ())
+        or card_back["game"] not in CARD_BACK_DESIGNS
+        or (
+            "design" in card_back
+            and (
+                not isinstance(card_back["design"], str)
+                or card_back["design"] not in CARD_BACK_DESIGNS[card_back["game"]]
+            )
+        )
+        or (
+            "display" in card_back
+            and card_back["display"] not in ("uniform", "players")
+        )
     ):
         return jsonify(error="Choose a valid card back."), 400
-    if card_back is not None and not inspect(db.engine).has_table("account_card_backs"):
+    inspector = inspect(db.engine)
+    card_back_table = inspector.has_table("account_card_backs")
+    if card_back is not None and (
+        not card_back_table
+        or (
+            "display" in card_back
+            and "display_mode"
+            not in {
+                column["name"] for column in inspector.get_columns("account_card_backs")
+            }
+        )
+    ):
         return (
             jsonify(
                 error="Card back settings are being updated. Please try again shortly."
@@ -217,11 +239,23 @@ def update_account_profile():
         user.profile_icon = icon
     if card_back is not None:
         User.query.filter_by(id=user.id).with_for_update().one()
-        choice = db.session.get(CardBackOption, (user.id, card_back["game"]))
-        if choice is None:
-            choice = CardBackOption(user_id=user.id, game=card_back["game"])
-            db.session.add(choice)
-        choice.design = card_back["design"]
+        from sqlalchemy import MetaData, Table, select
+
+        table = Table(
+            "account_card_backs", MetaData(), autoload_with=db.session.connection()
+        )
+        condition = (table.c.user_id == user.id) & (table.c.game == card_back["game"])
+        values = {
+            column: card_back[key]
+            for key, column in (("design", "design"), ("display", "display_mode"))
+            if key in card_back
+        }
+        if db.session.execute(select(table.c.user_id).where(condition)).first():
+            db.session.execute(table.update().where(condition).values(**values))
+        else:
+            db.session.execute(
+                table.insert().values(user_id=user.id, game=card_back["game"], **values)
+            )
     if turn_sound is not None:
         inspector = inspect(db.engine)
         table_available = inspector.has_table("account_turn_sound_options")

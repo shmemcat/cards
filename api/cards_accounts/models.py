@@ -23,14 +23,26 @@ class User(db.Model):
 
     def to_dict(self):
         card_backs = {"golf": "argyle"}
+        card_back_display = {"golf": "uniform"}
         turn_sound = dict.fromkeys(("golf", "euchre", "hearts"), False)
         turn_sound_options = {
             game: {"sound": "pop", "volume": 0.15} for game in turn_sound
         }
         inspector = inspect(db.engine)
         if inspector.has_table("account_card_backs"):
-            for choice in CardBackOption.query.filter_by(user_id=self.id):
-                card_backs[choice.game] = choice.design
+            columns = {
+                column["name"] for column in inspector.get_columns("account_card_backs")
+            }
+            fields = [CardBackOption.game, CardBackOption.design]
+            if "display_mode" in columns:
+                fields.append(CardBackOption.display_mode)
+            for choice in db.session.execute(
+                select(*fields).where(CardBackOption.user_id == self.id)
+            ).mappings():
+                card_backs[choice["game"]] = choice["design"]
+                card_back_display[choice["game"]] = choice.get(
+                    "display_mode", "uniform"
+                )
         if inspector.has_table("account_turn_sound_options"):
             # Explicit columns keep existing sessions usable before accounts_003.
             columns = {
@@ -61,6 +73,7 @@ class User(db.Model):
             "turn_sound": turn_sound,
             "turn_sound_options": turn_sound_options,
             "card_backs": card_backs,
+            "card_back_display": card_back_display,
             "preferences": profile_preferences(self.id),
             "preferences_available": preferences_available(self.id),
         }
@@ -100,6 +113,9 @@ class CardBackOption(db.Model):
     game = db.Column(db.String(16), primary_key=True)
     design = db.Column(
         db.String(64), nullable=False, default="argyle", server_default="argyle"
+    )
+    display_mode = db.Column(
+        db.String(16), nullable=False, default="uniform", server_default="uniform"
     )
 
 

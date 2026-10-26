@@ -169,6 +169,7 @@ def test_private_api_is_scoped_and_returns_no_account_secrets(client, user):
                 "username": "existing_player",
                 "profile_icon": "cat",
                 "email_verified": True,
+                "golf_card_back": "argyle",
             }
         ],
     }
