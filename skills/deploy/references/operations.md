@@ -1,9 +1,10 @@
 # Repository and release operations
 
 The Windows workspace contains sibling repositories under
-`D:/My Documents/Code`: `cards`, `hearts`, `euchre`, `golf`, and `infra`. Locate the same
-siblings from the selected checkout when running elsewhere. Verify remotes:
-application repositories are `github.com/shmemcat/<repo>`; Infra is
+`D:/My Documents/Code`: `cards`, `hearts`, `euchre`, `golf`, `handandfoot`, and `infra`.
+Locate the same siblings from the selected checkout when running elsewhere. Verify
+remotes: application repositories are `github.com/shmemcat/<repo>`, except the
+local `handandfoot` checkout uses `github.com/shmemcat/hand-and-foot`; Infra is
 `forge.nuttynet/nuttyverse/infra`, default branch `kernel`.
 
 ## Component selection and checks
@@ -14,6 +15,8 @@ application repositories are `github.com/shmemcat/<repo>`; Infra is
 - Euchre frontend: `web/`, `web-v*`, `euchre-web`, record `euchre-web`.
 - Golf backend: `api/`, `game-v*`, `golf-game-api`, record `golf-game`.
 - Golf frontend: `web/`, `web-v*`, `golf-web`, record `golf-web`.
+- Hand and Foot backend: `api/`, `game-v*`, `handandfoot-game-api`, record `handandfoot-game`.
+- Hand and Foot frontend: `web/`, `web-v*`, `handandfoot-web`, record `handandfoot-web`.
 - Cards accounts: `api/`, `accounts-v*`, `cards-accounts-api`, record `cards-accounts`.
 - Cards hub/gateway: web assets, `scripts/build.mjs`, `scripts/serve.mjs`,
   `deploy/Dockerfile` and relevant gateway inputs; `gateway-v*`, `cards-web`,
@@ -22,7 +25,9 @@ application repositories are `github.com/shmemcat/<repo>`; Infra is
 Component configurations live in `release/component.json`, `release/web.json`
 or Cards' `release/gateway.json`. Publishing workflows are
 `.github/workflows/{game,web,accounts,gateway}-release.yml` as applicable.
-Read the selected workflows for their current checks and artifact names.
+Read the selected workflows for their current checks and artifact names. Hand and
+Foot uses root npm workspace manifests/lockfile and a root Docker build context
+with `web/Dockerfile`; include these shared inputs when selecting components.
 Documentation or skill-only edits need no running image unless a build consumes
 them. Include relevant root manifests, lockfiles and shared build inputs when
 comparing deployed component sources. Release all affected components from the
@@ -117,3 +122,34 @@ Golf must first be present in the reviewed host policy with its tables migrated
 and separately scoped account credentials installed. If `status.images.golf` or
 `status.images['golf-web']` is absent, finish publication and report the pending
 one-time Infra activation. Never edit live policy or switch an unreviewed PR.
+
+## Hand and Foot
+
+Use `/deploy hand and foot`, `/deploy hand-and-foot` or `/deploy handandfoot`.
+The shared `prepare-request.mjs` accepts all three names and emits the canonical
+host repository key `hand-and-foot`, scoped to `handandfoot-game` and
+`handandfoot-web`. Use it directly with the published records.
+
+Run the applicable checks: `npm run test:web`, `npm run build`, `npm test`,
+`npm run test:accounts` and `npm run test:release`. The independent backend uses
+`uv sync --locked --group dev` and
+`uv run --locked --group dev python -m pytest -q` from `api/`.
+The frontend publishing workflow runs its tests before building the image;
+`web/Dockerfile` runs `npm run build`, including TypeScript checking and Vite,
+once inside that image build. Preserve the tests, build, nginx validation,
+immutable-version checks, labels and verified release JSON.
+
+Run Hand and Foot's `scripts/rehearse-release.mjs <status.json> <record.json>
+[second-record.json]` against fresh production status and the actual published
+records. It rehearses the complete collection, including Golf, with disposable
+PostgreSQL data and isolated mail. Preserve its shared-login/logout, polling and
+WebSocket, restart-recovery, account-deletion, route and database-isolation checks.
+The mounted proxy configuration comes from the sibling Infra checkout; fetch its
+default branch and verify the file matches that branch before rehearsal.
+
+Require `status.images.handandfoot` and `status.images['handandfoot-web']` with the
+reviewed host policy, adopted schema and scoped credentials already activated.
+If absent, finish publication and report the pending one-time Infra activation.
+Use the same fresh-generation plan/promote, backup for backend changes, peer
+continuity checks, health/readiness verification and journaled rollback as the
+other games.

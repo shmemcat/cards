@@ -2,9 +2,9 @@ name: Check split release and integration definitions
 
 on:
   pull_request:
-    paths: ["scripts/**", "release/**", "deploy/**", "package*.json", ".github/workflows/**"]
+    paths: ["scripts/**", "release/**", "deploy/**", "skills/deploy/**", "package*.json", ".github/workflows/**"]
   push:
-    paths: ["scripts/**", "release/**", "deploy/**", "package*.json", ".github/workflows/**"]
+    paths: ["scripts/**", "release/**", "deploy/**", "skills/deploy/**", "package*.json", ".github/workflows/**"]
   workflow_dispatch:
 
 permissions:

@@ -1,12 +1,14 @@
 ---
 name: deploy
-description: Release and deploy all current code in Hearts, Euchre, Golf, or Cards, including requests written as /deploy hearts, /deploy euchre, /deploy golf, or /deploy cards. Apply to an actual production-release request; setup, release-process discussions, and status checks do not authorize deployment.
+description: Release and deploy current code in Hearts, Euchre, Golf, Hand and Foot, or Cards, including /deploy and $deploy requests. Apply to an actual production-release request; setup, release-process discussions, and status checks do not authorize deployment.
 ---
 
-# Deploy Hearts, Euchre, Golf or Cards
+# Deploy Cards and games
 
-Accept `hearts`, `euchre`, `golf` or `cards` after `/deploy`, `$deploy`, or an equivalent
-release request. Use the named repository's current code, including intended
+Accept `hearts`, `euchre`, `golf`, `hand and foot`, `hand-and-foot`, `handandfoot`,
+or `cards` after `/deploy`, `$deploy`, or an equivalent release request. Hand and
+Foot uses the local `handandfoot` checkout and host repository key `hand-and-foot`.
+Use the named repository's current code, including intended
 uncommitted files and committed changes not yet in production. An invocation is
 authorization to test, fix release-blocking issues within scope, commit, push,
 publish and deploy that repository. Finish the authorized release without asking
