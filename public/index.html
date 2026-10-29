@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Hearts, Euchre and Golf, by shmemcat.">
+    <meta name="description" content="Hearts, Euchre, Golf, and Hand &amp; Foot, by shmemcat.">
     <meta name="theme-color" content="#191b22">
     <title>Cards · shmemcat</title>
     <!-- Open Graph -->
@@ -11,7 +11,7 @@
     <meta property="og:title" content="Cards · shmemcat">
     <meta property="og:site_name" content="Cards">
     <meta property="og:url" content="https://cards.shmem.dev/">
-    <meta property="og:description" content="Hearts, Euchre and Golf, by shmemcat.">
+    <meta property="og:description" content="Hearts, Euchre, Golf, and Hand &amp; Foot, by shmemcat.">
     <meta property="og:image" content="https://cards.shmem.dev/images/og-image.png">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
@@ -20,13 +20,14 @@
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Cards · shmemcat">
-    <meta name="twitter:description" content="Hearts, Euchre and Golf, by shmemcat.">
+    <meta name="twitter:description" content="Hearts, Euchre, Golf, and Hand &amp; Foot, by shmemcat.">
     <meta name="twitter:image" content="https://cards.shmem.dev/images/og-image.png">
     <meta name="twitter:image:alt" content="Cards, with the Hearts and Euchre logos and names side by side on a dark background.">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="preload" href="/assets/fonts/EBGaramond-Variable.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="preload" href="/assets/fonts/TerminalDosis-ExtraBold.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="preload" href="/assets/fonts/Fraunces-Variable.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="preload" href="/assets/fonts/Bitter-Variable.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="stylesheet" href="/styles.css">
     <script src="/theme.js"></script>
     <script>
@@ -44,6 +45,7 @@
           document.fonts.load('700 1em "EB Garamond"'),
           document.fonts.load('900 1em "Terminal Dosis"'),
           document.fonts.load('700 1em "Fraunces"'),
+          document.fonts.load('600 1em "Bitter"'),
         ]).then(reveal);
       })();
     </script>
@@ -51,7 +53,7 @@
   </head>
   <body>
     <a class="skip-link" href="#games">Skip to games</a>
-    <div class="site-shell">
+    <div class="site-shell hub-shell">
       <nav class="site-header" aria-label="Main navigation">
         <span aria-hidden="true"></span>
         <div class="nav-actions">
@@ -85,6 +87,13 @@
             <div class="game-wordmark">
               <span class="game-logo" aria-hidden="true"></span>
               <h2>Golf</h2>
+            </div>
+            <span class="play-button" aria-hidden="true"><span class="button-shine"></span>Play</span>
+          </a>
+          <a class="game-choice game-handandfoot" href="/hand-and-foot/" aria-label="Play Hand and Foot">
+            <div class="game-wordmark">
+              <span class="game-logo" aria-hidden="true"></span>
+              <h2>Hand &amp; Foot</h2>
             </div>
             <span class="play-button" aria-hidden="true"><span class="button-shine"></span>Play</span>
           </a>

@@ -368,6 +368,7 @@ test(
           .replaceAll('root /usr/share/nginx/html;', `root "${unix(resolve(root, 'public'))}";`)
           .replaceAll('hearts-web:80', pageTarget)
           .replaceAll('euchre-web:3002', pageTarget)
+          .replaceAll('handandfoot-web:80', pageTarget)
       );
       const standalone = (await readFile(resolve(hearts, 'web/nginx.conf'), 'utf8'))
         .replace('listen 80;', `listen 127.0.0.1:${standalonePort};`)

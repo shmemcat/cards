@@ -29,7 +29,7 @@ def fingerprint(value):
 
 
 def cookie_name():
-    return (
+    return current_app.config.get("CARDS_COOKIE_NAME") or (
         "__Host-cards_session"
         if current_app.config["CARDS_COOKIE_SECURE"]
         else "cards_session"

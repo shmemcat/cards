@@ -62,6 +62,9 @@ config = {
     ],
     "COMPONENT_VERSION": "local-split",
     "SOURCE_REVISION": "working-tree",
+    # Cookies ignore ports: independent localhost stacks must not share them.
+    # All games in this stack still use the same Cards account cookie.
+    "CARDS_COOKIE_NAME": f"cards_session_{settings['ports']['gateway']}",
 }
 if role == "accounts":
     from cards_accounts import create_app
@@ -109,6 +112,9 @@ else:
             "GAME_ACCOUNT_TOKENS": {role: settings["callbacks"][role]},
             **({"SECRET_KEY": settings["golfSecret"], "START_GOLF_WORKER": operation == "serve"} if role == "golf" else {}),
             **({"SECRET_KEY": settings["handandfootSecret"], "START_WORKER": operation == "serve",
+                # Full-match rehearsals may shorten bot pauses; rules and deals stay unchanged.
+                "BOT_INTERVAL": settings.get("handandfootBotInterval", .65),
+                "SESSION_COOKIE_NAME": f"handandfoot_session_{settings['ports']['handandfoot']}",
                 "DEVELOPMENT_FIXTURES": True, "CARDS_COOKIE_SECURE": False,
                 "ALLOWED_ORIGINS": config["CORS_ORIGINS"]} if role == "handandfoot" else {}),
         }

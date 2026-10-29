@@ -42,6 +42,7 @@ export async function startContainerStack({
   privateData = false,
   cutover,
   golf,
+  handandfoot,
 } = {}) {
   if (!['public', 'hearts'].includes(databaseSchema))
     throw new Error('Unsupported rehearsal schema');
@@ -50,6 +51,11 @@ export async function startContainerStack({
     for (const [key, repository] of [['game', 'golf-game-api'], ['web', 'golf-web']])
       assert(new RegExp(`^ghcr\\.io/shmemcat/${repository}@sha256:[a-f0-9]{64}$`).test(golf[key]), 'Golf requires published immutable images');
     assert(!cutover, 'Golf uses its own initial-activation rehearsal');
+  }
+  if (handandfoot) {
+    assert(golf && !cutover, 'Hand and Foot rehearses against the complete split collection');
+    for (const [key, repository] of [['game', 'handandfoot-game-api'], ['web', 'handandfoot-web']])
+      assert(new RegExp(`^ghcr\\.io/shmemcat/${repository}@sha256:[a-f0-9]{64}$`).test(handandfoot[key]), 'Hand and Foot requires published immutable images');
   }
   await mkdir(resolve(root, '.local'), { recursive: true });
   const directory = await mkdtemp(resolve(root, '.local/split-images-'));
@@ -95,6 +101,12 @@ export async function startContainerStack({
       GOLF_IMAGE: golf.game, GOLF_WEB_IMAGE: golf.web, SPLIT_GOLF_DIR: resolve(root, '../golf/deploy'),
       SPLIT_GOLF_PROXY_FILE: resolve(golf.proxyFile || resolve(root, '../infra/nuttybox/containers/cards-split/proxy.conf')),
     } : {}),
+    ...(handandfoot ? {
+      SPLIT_HANDANDFOOT_READ: credential(), SPLIT_HANDANDFOOT_CALLBACK: credential(), SPLIT_HANDANDFOOT_SECRET: credential(),
+      HANDANDFOOT_IMAGE: handandfoot.game, HANDANDFOOT_WEB_IMAGE: handandfoot.web,
+      SPLIT_HANDANDFOOT_DIR: resolve(root, '../handandfoot/deploy'),
+      SPLIT_HANDANDFOOT_PROXY_FILE: resolve(handandfoot.proxyFile || resolve(root, '../infra/nuttybox/containers/cards-split/proxy.conf')),
+    } : {}),
     ...(cutover
       ? {
           LEGACY_IMAGE: cutover.legacy,
@@ -122,6 +134,7 @@ export async function startContainerStack({
     ...(build ? ['-f', resolve(root, 'deploy/compose.split.build.yml')] : []),
     ...(cutover ? ['-f', resolve(root, 'deploy/compose.cutover.yml')] : []),
     ...(golf ? ['-f', resolve(root, '../golf/deploy/compose.release.yml')] : []),
+    ...(handandfoot ? ['-f', resolve(root, '../handandfoot/deploy/compose.release.yml')] : []),
   ];
   async function command(extra, capture = false) {
     const cleanup = extra[0] === 'down';
@@ -187,7 +200,7 @@ export async function startContainerStack({
     },
     identity: (role) => command(['ps', '-q', role], true),
     async health(role) {
-      const servicePort = role === 'golf' ? 5003 : role === 'euchre' ? 5002 : 5001;
+      const servicePort = role === 'handandfoot' ? 5104 : role === 'golf' ? 5003 : role === 'euchre' ? 5002 : 5001;
       const health = JSON.parse(
         await command(
           [
@@ -220,7 +233,7 @@ export async function startContainerStack({
       return health;
     },
     async restart(role) {
-      if (!['accounts', 'hearts', 'euchre', 'gateway', ...(golf ? ['golf'] : [])].includes(role))
+      if (!['accounts', 'hearts', 'euchre', 'gateway', ...(golf ? ['golf'] : []), ...(handandfoot ? ['handandfoot'] : [])].includes(role))
         throw new Error('Unknown component');
       await command([
         'up',

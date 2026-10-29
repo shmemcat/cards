@@ -13,6 +13,13 @@
   font-display: swap;
 }
 @font-face {
+  font-family: "Bitter";
+  src: url("/assets/fonts/Bitter-Variable.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
   font-family: "Terminal Dosis";
   src: url("/assets/fonts/TerminalDosis-Regular.ttf") format("truetype");
   font-weight: 400;
@@ -155,8 +162,11 @@ a:focus-visible, button:focus-visible {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 26px 0 65px;
+  padding: 4px 0 24px;
 }
+.hub-shell .site-header { min-height: 76px; }
+.hub-shell footer { padding-bottom: 24px; }
+.hub > h1 { margin-bottom: 24px; }
 h1 {
   margin: 0 0 48px;
   font-size: clamp(46px, 6vw, 64px);
@@ -171,17 +181,18 @@ h1 {
 }
 .games {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
-  width: min(100%, 1100px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  width: min(100%, 800px);
   margin-inline: auto;
 }
 .game-choice {
   --game-font: "EB Garamond", Georgia, serif;
   position: relative;
   min-width: 0;
-  min-height: 345px;
-  padding: 34px 24px 40px;
+  min-height: 244px;
+  padding: 18px 24px 22px;
+  gap: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -244,21 +255,20 @@ h1 {
   --game-button-shadow-hover: #8b57615c;
   --game-shine-hover: #e2b3b7;
 }
-.game-wordmark { position: relative; width: 100%; height: 194px; }
-/* Keep both logos 18px lower than their original positions. */
+.game-wordmark { position: relative; width: 100%; height: 154px; }
 .game-logo {
   position: absolute;
-  top: 18px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 185px;
-  height: 185px;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  height: 150px;
   background: var(--game-logo);
   mask: var(--game-mask) center / contain no-repeat;
   -webkit-mask: var(--game-mask) center / contain no-repeat;
 }
 .game-hearts .game-logo { --game-mask: url("/assets/hearts-logo.svg"); }
-.game-euchre .game-logo { --game-mask: url("/assets/euchre-logo.svg"); top: 12px; }
+.game-euchre .game-logo { --game-mask: url("/assets/euchre-logo.svg"); top: calc(50% - 6px); }
 h2 {
   position: absolute;
   left: 0;
@@ -275,6 +285,7 @@ h2 {
 }
 .game-hearts h2 { letter-spacing: 11px; text-indent: 11px; }
 .game-euchre h2, .game-golf h2 { font-weight: 700; }
+.game-choice h2 { top: 50%; transform: translateY(-50%); font-size: 42px; }
 .play-button {
   position: relative;
   display: flex;
@@ -293,7 +304,7 @@ h2 {
   letter-spacing: 5px;
   text-indent: 5px;
 }
-.game-euchre .play-button, .game-golf .play-button {
+.game-euchre .play-button, .game-golf .play-button, .game-handandfoot .play-button {
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 1px;
@@ -302,6 +313,7 @@ h2 {
 }
 .game-euchre .play-button { font-variant-caps: small-caps; }
 .game-golf .play-button { font-weight: 700; }
+.game-handandfoot .play-button { font-weight: 600; }
 .button-shine {
   position: absolute;
   top: 2.5px;
@@ -371,15 +383,16 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
 .nav-account > span:last-child { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 650px) {
   .site-shell { width: min(100% - 36px, 420px); }
+  .hub-shell { width: min(100% - 36px, 580px); }
   .site-header { min-height: 76px; }
-  .hub { padding: 28px 0 32px; }
+  .hub { padding: 12px 0 24px; }
   h1 { margin-bottom: 34px; font-size: 46px; letter-spacing: 10px; text-indent: 10px; }
-  .games { grid-template-columns: 1fr; gap: 20px; }
-  .game-choice { min-height: 286px; padding: 25px 24px 32px; }
-  .game-wordmark { height: 172px; }
-  .game-logo { width: 167px; height: 167px; }
-  h2 { top: 72px; font-size: 44px; letter-spacing: 6px; text-indent: 6px; }
-  .game-hearts h2 { letter-spacing: 10px; text-indent: 10px; }
+  .games { gap: 14px; }
+  .game-choice { min-height: 212px; padding: 14px 12px 18px; gap: 12px; border-radius: 18px; }
+  .game-wordmark { height: 134px; }
+  .game-logo { width: 124px; height: 124px; max-width: 100%; }
+  .game-choice h2 { font-size: clamp(20px, 6.15vw, 36px); letter-spacing: 3px; text-indent: 3px; }
+  .game-hearts h2 { letter-spacing: 4px; text-indent: 4px; }
   footer { padding-bottom: 28px; }
   .theme-toggle { min-height: 44px; width: 30px; }
   .nav-account { min-height: 44px; }
@@ -401,12 +414,12 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
   --game-text: #f0eee1;
   --game-logo: #7c9885;
   --game-button: #cf9f9c;
-  --game-button-hover: #ddb0a8;
+  --game-button-hover: #ae7b78;
   --game-button-text: #293f35;
   --game-button-shadow: #593b3b55;
   --game-button-shadow-hover: #78505455;
   --game-shine: #f4d6cb;
-  --game-shine-hover: #f7ded4;
+  --game-shine-hover: #d5a39c;
 }
 [data-theme="light"] .game-golf {
   --game-panel: #f0f3e9;
@@ -417,9 +430,51 @@ footer { padding: 20px 0 34px; text-align: center; color: var(--hub-muted); }
   --game-shine-hover: #e4b4ad;
 }
 .game-golf .game-logo { --game-mask: url("/assets/golf-logo.svg"); }
-@media (min-width: 641px) and (max-width: 900px) {
-  .games { gap: 18px; }
-  .game-choice { padding-inline: 12px; }
-  .game-logo { width: 150px; height: 170px; }
-  .game-choice h2 { font-size: 36px; letter-spacing: 5px; text-indent: 5px; }
+.game-handandfoot {
+  --game-font: "Bitter", Georgia, serif;
+  --game-panel: #4b303b;
+  --game-text: #f4e8dd;
+  --game-logo: #7e5b63;
+  --game-button: #dcaaa2;
+  --game-button-hover: color-mix(in srgb, var(--game-button) 88%, #000);
+  --game-button-text: #4b2730;
+  --game-button-shadow: color-mix(in srgb, var(--game-button) 77%, #000);
+  --game-button-shadow-hover: var(--game-button-shadow);
+  --game-shine: color-mix(in srgb, var(--game-button) 45%, #fff);
+  --game-shine-hover: color-mix(in srgb, var(--game-button-hover) 45%, #fff);
+}
+[data-theme="light"] .game-handandfoot {
+  --game-panel: #f1e7d8;
+  --game-text: #613a43;
+  --game-logo: #cfb7b5;
+}
+:root:not([data-theme="light"]) .game-handandfoot {
+  --game-button-hover: #aa7d7b;
+  --game-button-pressed: #aa7d7b;
+  --game-button-shadow-hover: #7c5b5b;
+  --game-button-shadow-pressed: #7c5b5b;
+  --game-shine-hover: #bca8a7;
+}
+:root:not([data-theme="light"]) .game-handandfoot:is(:hover, :focus-visible) .play-button {
+  background: var(--game-button-hover);
+  color: #2c0c14;
+  box-shadow: inset -3px -3px 0 var(--game-button-shadow-hover);
+}
+:root:not([data-theme="light"]) .game-handandfoot:active .play-button {
+  background: var(--game-button-pressed);
+  color: #2c0c14;
+  box-shadow: inset 3px 3px 0 var(--game-button-shadow-pressed);
+}
+.game-handandfoot .game-logo { --game-mask: url("/assets/handandfoot-logo.svg"); }
+.game-handandfoot h2 { font-size: 30px; font-weight: 600; letter-spacing: 2px; text-indent: 2px; }
+@media (min-width: 651px) and (max-height: 760px) {
+  .hub-shell .site-header { min-height: 64px; }
+  .hub > h1 { font-size: 52px; margin-bottom: 20px; }
+  .games { gap: 20px; }
+  .game-choice { min-height: 222px; padding-block: 16px 20px; gap: 12px; }
+  .game-wordmark { height: 134px; }
+  .game-logo { width: 134px; height: 134px; }
+}
+@media (max-width: 650px) {
+  .game-handandfoot h2 { font-size: clamp(20px, 4.5vw, 28px); letter-spacing: 1px; text-indent: 1px; }
 }
