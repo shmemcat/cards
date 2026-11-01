@@ -17,6 +17,9 @@ DO $$ BEGIN
   IF to_regclass('euchre_achievement_state') IS NOT NULL THEN
     GRANT SELECT, INSERT, UPDATE, DELETE ON euchre_achievement_state TO euchre_runtime;
   END IF;
+  IF to_regclass('euchre_saved_games') IS NOT NULL THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON euchre_saved_games TO euchre_runtime;
+  END IF;
 END $$;
 GRANT SELECT ON euchre_alembic_version, euchre_account_schema_version TO euchre_runtime;
 
