@@ -15,7 +15,7 @@ def test_display_is_private_and_persists_independently_of_design_across_devices(
         ).status_code
         == 401
     )
-    assert sign_in(client).json["user"]["card_back_display"] == {"golf": "uniform"}
+    assert sign_in(client).json["user"]["card_back_display"] == {"golf": "uniform", "handandfoot": "uniform"}
     result = post(
         client, "profile", {"card_back": {"game": "golf", "display": "players"}}
     )
@@ -41,6 +41,7 @@ def test_display_is_private_and_persists_independently_of_design_across_devices(
         "profile_icon",
         "email_verified",
         "golf_card_back",
+        "handandfoot_card_back",
     }
     result = post(
         second_device, "profile", {"card_back": {"game": "golf", "display": "uniform"}}

@@ -2,6 +2,7 @@ import secrets
 from datetime import datetime, timedelta
 from cards_accounts.extensions import db
 from cards_accounts.game_client import profile_preferences, preferences_available
+from cards_accounts.card_backs import DEFAULT_CARD_BACKS
 from sqlalchemy import event, inspect, select, update
 
 
@@ -22,8 +23,8 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
-        card_backs = {"golf": "argyle"}
-        card_back_display = {"golf": "uniform"}
+        card_backs = dict(DEFAULT_CARD_BACKS)
+        card_back_display = dict.fromkeys(DEFAULT_CARD_BACKS, "uniform")
         turn_sound = dict.fromkeys(("golf", "euchre", "hearts"), False)
         turn_sound_options = {
             game: {"sound": "pop", "volume": 0.15} for game in turn_sound

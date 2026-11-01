@@ -36,7 +36,7 @@ from cards_accounts.email_templates import (
 from cards_accounts.email_utils import _send, hash_token
 from cards_accounts.extensions import db, limiter
 from cards_accounts.models import PasswordResetToken, User
-from cards_accounts.card_backs import CARD_BACK_DESIGNS
+from cards_accounts.card_backs import CARD_BACK_DESIGNS, DEFAULT_CARD_BACKS
 from cards_accounts.account_security import change_email, reset_password_with_token
 
 account_bp = Blueprint("cards_account", __name__, url_prefix="/account")
@@ -253,6 +253,7 @@ def update_account_profile():
         if db.session.execute(select(table.c.user_id).where(condition)).first():
             db.session.execute(table.update().where(condition).values(**values))
         else:
+            values.setdefault("design", DEFAULT_CARD_BACKS[card_back["game"]])
             db.session.execute(
                 table.insert().values(user_id=user.id, game=card_back["game"], **values)
             )

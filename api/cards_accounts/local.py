@@ -7,29 +7,31 @@ from cards_accounts import account_sessions
 from cards_accounts.account_contracts import AccountIdentity, AccountSession
 from cards_accounts.extensions import db
 from cards_accounts.models import CardBackOption, User
+from cards_accounts.card_backs import DEFAULT_CARD_BACKS
 from sqlalchemy import inspect, select
 
 
-def identity(user, golf_card_back=None):
+def identity(user, card_backs=None):
     if user is None:
         return None
     from cards_accounts.deletions import is_deleting
 
     if is_deleting(user.id):
         return None
-    if golf_card_back is None:
-        golf_card_back = "argyle"
+    if card_backs is None:
+        card_backs = {}
         if inspect(db.engine).has_table("account_card_backs"):
-            golf_card_back = (
+            card_backs = dict(
                 db.session.execute(
-                    select(CardBackOption.design).where(
-                        CardBackOption.user_id == user.id, CardBackOption.game == "golf"
+                    select(CardBackOption.game, CardBackOption.design).where(
+                        CardBackOption.user_id == user.id
                     )
-                ).scalar()
-                or "argyle"
+                ).all()
             )
+    choices = DEFAULT_CARD_BACKS | card_backs
     return AccountIdentity(
-        user.id, user.username, user.profile_icon, user.email_verified, golf_card_back
+        user.id, user.username, user.profile_icon, user.email_verified,
+        choices["golf"], choices["handandfoot"],
     )
 
 
@@ -60,17 +62,16 @@ class LocalAccounts:
         ids = set(ids)
         card_backs = {}
         if ids and inspect(db.engine).has_table("account_card_backs"):
-            card_backs = dict(
-                db.session.execute(
-                    select(CardBackOption.user_id, CardBackOption.design).where(
-                        CardBackOption.user_id.in_(ids), CardBackOption.game == "golf"
-                    )
-                ).all()
-            )
+            for uid, game, design in db.session.execute(
+                select(CardBackOption.user_id, CardBackOption.game, CardBackOption.design).where(
+                    CardBackOption.user_id.in_(ids)
+                )
+            ).all():
+                card_backs.setdefault(uid, {})[game] = design
         return {
             row.id: value
             for row in User.query.filter(User.id.in_(ids))
-            if (value := identity(row, card_backs.get(row.id, "argyle"))) is not None
+            if (value := identity(row, card_backs.get(row.id, {}))) is not None
         }
 
     def valid_origin(self):

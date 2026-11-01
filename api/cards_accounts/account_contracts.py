@@ -17,6 +17,7 @@ class AccountIdentity:
     profile_icon: str
     email_verified: bool
     golf_card_back: str = "argyle"
+    handandfoot_card_back: str = "single-leaves"
 
 
 @dataclass(frozen=True)

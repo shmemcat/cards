@@ -16,7 +16,7 @@ def test_guest_cannot_save_and_existing_accounts_default_to_argyle(client, user)
         ).status_code
         == 401
     )
-    assert sign_in(client).json["user"]["card_backs"] == {"golf": "argyle"}
+    assert sign_in(client).json["user"]["card_backs"] == {"golf": "argyle", "handandfoot": "single-leaves"}
 
 
 def test_all_approved_backs_persist_across_sessions_and_devices(client, app, user):
@@ -53,7 +53,7 @@ def test_another_account_never_inherits_the_choice(client, app, user):
         db.session.commit()
     post(client, "logout")
     result = post(client, "login", {"username": "another_player", "password": PASSWORD})
-    assert result.json["user"]["card_backs"] == {"golf": "argyle"}
+    assert result.json["user"]["card_backs"] == {"golf": "argyle", "handandfoot": "single-leaves"}
     post(client, "profile", {"card_back": {"game": "golf", "design": "compass"}})
     post(client, "logout")
     assert sign_in(client).json["user"]["card_backs"]["golf"] == "fern-sprig"
@@ -81,7 +81,7 @@ def test_invalid_changes_are_rejected_atomically(client, user, value):
     response = post(client, "profile", {"card_back": value, "profile_icon": "sparkles"})
     assert response.status_code == 400
     state = client.get("/account/session").json["user"]
-    assert state["card_backs"] == {"golf": "argyle"}
+    assert state["card_backs"] == {"golf": "argyle", "handandfoot": "single-leaves"}
     assert state["profile_icon"] == "cat"
 
 
@@ -119,7 +119,7 @@ def test_additive_migration_preserves_accounts_sessions_and_turn_options(
             )
         assert schema_ready()
     assert client.get("/account/session").json["user"]["card_backs"] == {
-        "golf": "argyle"
+        "golf": "argyle", "handandfoot": "single-leaves"
     }
     assert post(client, "profile", {"profile_icon": "sparkles"}).status_code == 200
     assert (
